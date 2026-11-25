@@ -3,6 +3,7 @@ local Path = require "obsidian.path"
 local h = require "tests.helpers"
 
 local new_set, eq = MiniTest.new_set, MiniTest.expect.equality
+local child = MiniTest.new_child_neovim()
 
 local root
 
@@ -62,18 +63,13 @@ local T = new_set {
         root / "personal" / "meetup.md"
       )
       h.write("old work notes", root / "archive.md")
-      Obsidian = { dir = root }
-      local cache = require "obsidian.cache"
-      cache.setup { enabled = true, backend = "memory" }
-      h.wait(function()
-        return cache.is_ready()
-      end, { desc = "query cache" })
+      child.restart { "-u", "scripts/minimal_init.lua" }
+      child.lua([[Obsidian = { dir = require("obsidian.path").new(...) }]], { tostring(root) })
+      h.child_setup_cache(child)
     end,
     post_case = function()
-      require("obsidian.cache").shutdown()
+      child.stop()
       vim.fn.delete(tostring(root), "rf")
-      Obsidian = nil
-      require("obsidian.lsp.watchfiles").reset_handlers()
     end,
   },
 }
@@ -81,15 +77,26 @@ local T = new_set {
 ---@param query string
 ---@param opts table|nil
 ---@return obsidian.search.QueryResult[]
+---@return string|nil
+local function search_raw(query, opts)
+  local result = h.child_await(
+    child,
+    ([[
+require("obsidian.search.query").search(%q, %s, function(items, err)
+  done { items = items, err = err }
+end)
+]]):format(query, vim.inspect(vim.tbl_extend("force", { root = tostring(root) }, opts or {}))),
+    { desc = "query results" }
+  )
+  return result.items, result.err
+end
+
+---@param query string
+---@param opts table|nil
+---@return obsidian.search.QueryResult[]
 local function search(query, opts)
-  local results, query_error
-  Query.search(query, vim.tbl_extend("force", { root = root }, opts or {}), function(items, err)
-    results, query_error = items, err
-  end)
-  h.wait(function()
-    return results ~= nil
-  end, { desc = "query results" })
-  assert(not query_error, query_error)
+  local results, err = search_raw(query, opts)
+  assert(not err, err)
   return results
 end
 
@@ -117,22 +124,66 @@ T["parser"]["reports incomplete delimiters unless requested otherwise"] = functi
   eq(true, quote_error ~= nil)
   eq(true, group_error ~= nil)
   eq("and", assert(Query.parse("meeting (work OR personal", { allow_incomplete = true })).kind)
+  eq("scope", assert(Query.parse("file:", { allow_incomplete = true })).kind)
+  local _, property_error = Query.parse 'line:[status:"Draft"'
+  eq(true, property_error ~= nil)
 end
 
-T["parser"]["rejects invalid regular expressions"] = function()
-  local ast, err = Query.parse "/[/"
-  eq(nil, ast)
-  eq(true, err:find("Invalid regular expression", 1, true) ~= nil)
+T["parser"]["rejects regular expressions in every query context"] = function()
+  for _, query in ipairs {
+    "/HappyC.t/",
+    "/[/",
+    "/unfinished",
+    "path:/work/",
+    "content:/HappyCat/",
+    "tag:/work/",
+    "work OR /notes/",
+    "-(work /notes/)",
+    "[status:/Draft/]",
+    "[/status/:Draft]",
+    "line:[status:/Draft/]",
+    "match-case:[/status/:Draft]",
+    "match-case:(content:/HappyCat/)",
+  } do
+    for _, allow_incomplete in ipairs { false, true } do
+      local ast, err = Query.parse(query, { allow_incomplete = allow_incomplete })
+      eq(nil, ast)
+      eq(true, err:find("Regular expressions are not supported", 1, true) ~= nil)
+    end
+  end
 end
 
 T["terms"] = new_set()
 
-T["terms"]["matches words, phrases, regex, OR, and negation"] = function()
+T["terms"]["matches words, phrases, OR, and negation"] = function()
   eq({ "meetings/work.md" }, paths "weekly meeting")
   eq({ "meetings/work.md" }, paths '"mix the flour"')
-  eq({ "meetings/work.md" }, paths "/HappyC.t/")
   eq({ "meetings/work.md", "archive.md", "personal/meetup.md" }, paths "work OR friends")
   eq({ "archive.md" }, paths "work -meeting")
+end
+
+T["terms"]["matches slashes and pattern characters literally in quoted text"] = function()
+  local path = root / "literal.md"
+  h.write(
+    table.concat({
+      "---",
+      "url: https://example.com/docs",
+      [[quote: 'they said "hello"']],
+      "---",
+      "/HappyC.t/",
+      'they said "hello" to each other',
+    }, "\n"),
+    path
+  )
+  child.lua([[require("obsidian.cache").notes.refresh(...)]], { tostring(path) })
+
+  eq({ "literal.md" }, paths 'content:"/HappyC.t/"')
+  eq({}, paths 'content:"/HappyCat/"')
+  eq({ "literal.md" }, paths '"they said \\"hello\\" to each other"')
+  eq({ "literal.md" }, paths '[url:"https://example.com/docs"]')
+  eq({ "literal.md" }, paths '[quote:"they said \\"hello\\""]')
+  eq({ "meetings/work.md" }, paths 'path:"meetings/"')
+  eq({ "meetings/work.md" }, paths "path:meetings/work")
 end
 
 T["terms"]["folds Unicode case for case-insensitive terms"] = function()
@@ -147,7 +198,7 @@ T["operators"]["matches file, path, content, and case scopes"] = function()
   eq({ "personal/meetup.md" }, paths "file:meetup")
   eq({ "meetings/work.md" }, paths 'path:"meetings/work"')
   eq({ "meetings/work.md" }, paths 'content:"HappyCat"')
-  eq({ "meetings/work.md" }, paths "content:/Alice about HappyCat/")
+  eq({ "meetings/work.md" }, paths 'content:"Alice about HappyCat"')
   eq({}, paths "match-case:happycat")
   eq({ "meetings/work.md" }, paths "match-case:HappyCat")
   eq({ "meetings/work.md" }, paths "ignore-case:happycat")
@@ -204,9 +255,8 @@ T["cache universe includes generic searchable files"] = function()
   h.write('{"text":"needle in a canvas"}', canvas_path)
   h.write('{"text":"needle in an excalidraw drawing"}', excalidraw_path)
   h.write("needle in plain text", root / "ignored.txt")
-  local cache = require "obsidian.cache"
   for _, path in ipairs { note_path, base_path, canvas_path, excalidraw_path } do
-    cache.notes.refresh(tostring(path))
+    child.lua([[require("obsidian.cache").notes.refresh(...)]], { tostring(path) })
   end
 
   eq(
@@ -223,42 +273,41 @@ T["cache universe includes generic searchable files"] = function()
   )
 end
 
+T["reports unsupported regex through the search callback"] = function()
+  local results, err = search_raw "content:/HappyCat/"
+  eq({}, results)
+  eq(true, err:find("Regular expressions are not supported", 1, true) ~= nil)
+end
+
 T["does not execute without the cache"] = function()
-  require("obsidian.cache").shutdown()
-  local results, err
-  Query.search("work", { root = root }, function(items, search_error)
-    results, err = items, search_error
-  end)
+  child.lua [[require("obsidian.cache").shutdown()]]
+  local results, err = search_raw "work"
   eq({}, results)
   eq(true, err:find("cache", 1, true) ~= nil)
 end
 
 T["metadata-only queries do not start ripgrep"] = function()
-  local Ripgrep = require "obsidian.search.ripgrep"
-  local original = Ripgrep.read_lines_async
-  local calls = 0
-  Ripgrep.read_lines_async = function(...)
-    calls = calls + 1
-    return original(...)
-  end
+  child.lua [[
+local Ripgrep = require "obsidian.search.ripgrep"
+local original = Ripgrep.read_lines_async
+_G.read_lines_calls = 0
+Ripgrep.read_lines_async = function(...)
+  _G.read_lines_calls = _G.read_lines_calls + 1
+  return original(...)
+end
+]]
 
-  local ok, err = pcall(function()
-    local metadata_results = search "[status:Draft]"
-    eq(
-      { "meetings/work.md" },
-      vim.tbl_map(function(result)
-        return result.document.relative_path
-      end, metadata_results)
-    )
-    eq(nil, metadata_results[1].context)
-    eq(0, calls)
-    eq({ "meetings/work.md" }, paths "content:HappyCat")
-    eq(1, calls)
-  end)
-  Ripgrep.read_lines_async = original
-  if not ok then
-    error(err)
-  end
+  local metadata_results = search "[status:Draft]"
+  eq(
+    { "meetings/work.md" },
+    vim.tbl_map(function(result)
+      return result.document.relative_path
+    end, metadata_results)
+  )
+  eq(nil, metadata_results[1].context)
+  eq(0, child.lua_get "read_lines_calls")
+  eq({ "meetings/work.md" }, paths "content:HappyCat")
+  eq(1, child.lua_get "read_lines_calls")
 end
 
 return T

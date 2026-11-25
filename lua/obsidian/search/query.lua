@@ -32,7 +32,6 @@ end
 ---@class obsidian.search.QueryNode
 ---@field kind  string
 ---@field value string |?
----@field regex boolean |?
 ---@field scope string |?
 ---@field child obsidian.search.QueryNode |?
 ---@field left  obsidian.search.QueryNode |?
@@ -81,10 +80,10 @@ local function tokenize(query, allow_incomplete)
     elseif char == "-" then
       add("not", nil, i)
       i = i + 1
-    elseif char == '"' or char == "/" then
+    elseif char == "/" then
+      return nil, string.format("Regular expressions are not supported at column %d; use quotes for literal text", i)
+    elseif char == '"' then
       local start = i
-      local delimiter = char
-      local kind = delimiter == '"' and "phrase" or "regex"
       local value = {}
       local closed = false
       i = i + 1
@@ -92,13 +91,9 @@ local function tokenize(query, allow_incomplete)
         char = query:sub(i, i)
         if char == "\\" and i < #query then
           local escaped = query:sub(i + 1, i + 1)
-          if delimiter == "/" then
-            value[#value + 1] = "\\" .. escaped
-          else
-            value[#value + 1] = escaped
-          end
+          value[#value + 1] = escaped
           i = i + 2
-        elseif char == delimiter then
+        elseif char == '"' then
           closed = true
           i = i + 1
           break
@@ -108,9 +103,9 @@ local function tokenize(query, allow_incomplete)
         end
       end
       if not closed and not allow_incomplete then
-        return nil, string.format("Unclosed %s at column %d", kind, start)
+        return nil, string.format("Unclosed phrase at column %d", start)
       end
-      add(kind, table.concat(value), start)
+      add("phrase", table.concat(value), start)
     elseif char == "[" then
       local start = i
       local value = {}
@@ -131,7 +126,7 @@ local function tokenize(query, allow_incomplete)
           if char == quote then
             quote = nil
           end
-        elseif char == '"' or char == "/" then
+        elseif char == '"' then
           value[#value + 1] = char
           quote = char
         elseif char == "]" then
@@ -140,8 +135,8 @@ local function tokenize(query, allow_incomplete)
           break
         else
           value[#value + 1] = char
-          i = i + 1
         end
+        i = i + 1
       end
       if not closed and not allow_incomplete then
         return nil, string.format("Unclosed property expression at column %d", start)
@@ -184,7 +179,7 @@ local function split_property(value)
       if char == quote then
         quote = nil
       end
-    elseif char == '"' or char == "/" then
+    elseif char == '"' then
       quote = char
     elseif char == "(" then
       depth = depth + 1
@@ -224,10 +219,9 @@ function M.parse(query, opts)
   end
 
   ---@param value string
-  ---@param regex boolean |?
   ---@return obsidian.search.QueryNode
-  local function term(value, regex)
-    return { kind = "term", value = value, regex = regex }
+  local function term(value)
+    return { kind = "term", value = value }
   end
 
   ---@param value string
@@ -279,9 +273,6 @@ function M.parse(query, opts)
     elseif token.kind == "phrase" then
       position = position + 1
       return term(token.value or "")
-    elseif token.kind == "regex" then
-      position = position + 1
-      return term(token.value or "", true)
     elseif token.kind == "property" then
       position = position + 1
       return property(token.value or "")
@@ -300,19 +291,13 @@ function M.parse(query, opts)
     local child
     local err
     if inline ~= "" then
-      if vim.startswith(inline, "/") and vim.endswith(inline, "/") and #inline > 1 then
-        child = term(inline:sub(2, -2), true)
-      else
-        child = term(inline)
-      end
+      child = term(inline)
+    elseif not current() and opts.allow_incomplete then
+      child = term ""
     else
       child, err = parse_unary()
       if not child then
-        if opts.allow_incomplete then
-          child = term ""
-        else
-          return nil, err
-        end
+        return nil, err
       end
     end
     return { kind = "scope", scope = scope, child = child }
@@ -336,7 +321,6 @@ function M.parse(query, opts)
       and (
         token.kind == "word"
         or token.kind == "phrase"
-        or token.kind == "regex"
         or token.kind == "property"
         or token.kind == "lparen"
         or token.kind == "not"
@@ -387,27 +371,6 @@ function M.parse(query, opts)
     return nil, string.format("Unexpected token at column %d", trailing.pos)
   end
 
-  local function validate_regexes(node)
-    if node.kind == "term" and node.regex then
-      local ok, err = pcall(vim.regex, node.value or "")
-      if not ok then
-        return tostring(err)
-      end
-    end
-    for _, child in ipairs { node.child, node.left, node.right, node.key } do
-      if child then
-        local err = validate_regexes(child)
-        if err then
-          return err
-        end
-      end
-    end
-  end
-
-  local regex_error = validate_regexes(result)
-  if regex_error then
-    return nil, "Invalid regular expression: " .. regex_error
-  end
   return result
 end
 
@@ -447,14 +410,6 @@ end
 ---@return integer |? end_col 0-indexed, exclusive.
 local function find_term(text, node, case_sensitive, exact)
   local value = node.value or ""
-  if node.regex then
-    local ok, regex = pcall(vim.regex, (case_sensitive and "\\C" or "\\c") .. value)
-    if not ok then
-      return nil
-    end
-    return regex:match_str(text)
-  end
-
   local original_text, original_value = text, value
   if not case_sensitive then
     text = vim.fn.tolower(text)
@@ -554,7 +509,7 @@ local function evaluate(node, document, context)
         local child = node.child
         ---@cast child - nil
         local is_empty = value == vim.NIL or value == nil
-        if child.kind == "term" and not child.regex and string.lower(child.value or "") == "null" then
+        if child.kind == "term" and string.lower(child.value or "") == "null" then
           if is_empty then
             return { score = 25, line = 0, col = 0, end_col = 0 }
           end
@@ -562,7 +517,7 @@ local function evaluate(node, document, context)
           local values = {}
           flatten(value, values)
           local comparison, expected
-          if child.kind == "term" and not child.regex then
+          if child.kind == "term" then
             comparison, expected = (child.value or ""):match "^(<=?)(.*)$"
             if not comparison then
               comparison, expected = (child.value or ""):match "^(>=?)(.*)$"

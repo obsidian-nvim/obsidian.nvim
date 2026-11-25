@@ -9,12 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Cache-backed Obsidian-style queries for saved search bookmarks, with literal/boolean terms, scoped operators, and basic frontmatter predicates. Regex is explicitly unsupported; the search command remains grep-based. See [Search](docs/Search.md) for the supported subset and planned UI/embedded results.
 - Follow `obsidian://` Markdown links and autolinks inside Neovim through link navigation. Supports `open`, `new`, `daily`, `unique`, `search`, and `choose-vault`, including heading/block targets, section content insertion, and tab/split opening. File-modifying links require confirmation by default; URI targets stay inside configured workspaces. See [Navigation](docs/Navigation.md#obsidian-uri-links).
 - Shared note APIs for whole-body and descendant-section insertion, explicit spacing modes, case-insensitive heading selection, exact-path creation, and noninteractive filename validation. URI actions reuse these APIs rather than maintaining a separate editing implementation.
 - JXL/JPEG XL Support.
 
 ### Fixed
 
+- Advance the query tokenizer through quoted and escaped property expressions instead of stalling.
 - Preserve the first line and full line length in linewise visual mode (`V`) selections such as `extract_note` and handle empty lines safely.
 - Write note content without Windows text-mode newline conversion, preventing stray carriage returns in open buffers after saving.
 - Preserve percent-encoded query values when following URI links instead of decoding query delimiters before dispatch.

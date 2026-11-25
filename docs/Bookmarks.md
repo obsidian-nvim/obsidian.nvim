@@ -21,6 +21,7 @@ See: <https://help.obsidian.md/bookmarks>
 
 ## Caveats
 
+- Search bookmarks require the cache to be enabled. They support the query subset documented in [[Search]], not the complete Obsidian app language. Regex queries report an unsupported-feature error instead of using Vim regex.
 - No `graph` type — Obsidian app does not bookmark graph views.
 - Editing bookmarks is not implemented. Bookmarks can be added from code actions and note pickers, moved into groups from the bookmark picker, or removed through the Lua API.
 

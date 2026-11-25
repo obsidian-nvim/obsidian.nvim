@@ -17,7 +17,7 @@ require("obsidian").setup {
 
 The default backend is `json`. It writes a cache file under Neovim's cache directory and reuses it between sessions. You do not need to set `backend = "json"` unless you want to be explicit.
 
-The cache powers `:Obsidian quick_switch`, note-symbol lookup and completion, Obsidian bookmark queries, the built-in query picker, and vault-wide heading completion (`[[##query`). Quick switch reads note names, aliases, attachments, and missing-link targets from the cache. Query execution requires an enabled cache; content predicates use ripgrep against the file set already validated by the cache, while metadata-only predicates do not start ripgrep.
+The cache powers `:Obsidian quick_switch`, note-symbol lookup and completion, Obsidian bookmark queries, and vault-wide heading completion (`[[##query`). Quick switch reads note names, aliases, attachments, and missing-link targets from the cache. Query execution requires an enabled cache; content predicates use ripgrep against the file set already validated by the cache, while metadata-only predicates do not start ripgrep. Search bookmarks use the existing result picker; a dedicated query UI is planned. `:Obsidian search` still uses the legacy grep path. See [[Search]] for the supported query language and planned work.
 
 ## What Gets Cached
 
