@@ -164,11 +164,8 @@ M.find_files = function(opts)
 
     ---@type obsidian.picker.Entry[]
     local entries = {}
-    local lookup = {}
-    ---@type table<string, obsidian.picker.Entry>
-    local missing_entries = {}
     local notes = cache.notes.all()
-    local attachments = cache.attachments.all()
+    local attachments = (show_attachments or not show_existing_only) and cache.attachments.all() or {}
 
     ---@param text string
     ---@param path string
@@ -185,16 +182,6 @@ M.find_files = function(opts)
       }
       entries[#entries + 1] = entry
       return entry
-    end
-
-    for path, note in pairs(notes) do
-      add_lookup_path(path, lookup)
-      for _, alias in ipairs(note.aliases or {}) do
-        lookup[alias:lower()] = true
-      end
-    end
-    for path in pairs(attachments) do
-      add_lookup_path(path, lookup)
     end
 
     for path, note in pairs(notes) do
@@ -216,6 +203,19 @@ M.find_files = function(opts)
     end
 
     if not show_existing_only then
+      local lookup = {}
+      for path, note in pairs(notes) do
+        add_lookup_path(path, lookup)
+        for _, alias in ipairs(note.aliases or {}) do
+          lookup[alias:lower()] = true
+        end
+      end
+      for path in pairs(attachments) do
+        add_lookup_path(path, lookup)
+      end
+
+      ---@type table<string, obsidian.picker.Entry>
+      local missing_entries = {}
       for path, note in pairs(notes) do
         for _, outgoing in ipairs(note.links_out or {}) do
           local target = outgoing.target

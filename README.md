@@ -110,7 +110,7 @@ There's one entry point user command for this plugin: `Obsidian`
 - `:Obsidian yesterday` - open/create the daily note for the previous working day
 - `:Obsidian new_from_template [TITLE] [TEMPLATE]` - create a new note with `TITLE` from a template with the name `TEMPLATE`
   - both arguments are optional. If not given, the template will be selected from a list using your preferred picker
-- `:Obsidian quick_switch` - switch to another note in your vault, searching by its name with a picker
+- `:Obsidian quick_switch` - switch to another note in your vault, searching by its name with a picker. With the cache enabled, the default existing-only mode skips missing-link detection.
 - `:Obsidian rebuild_cache` - force a full cache rescan and flush
 - `:Obsidian search [QUERY]` - search for (or create) notes in your vault using `ripgrep` with your preferred picker
 - `:Obsidian sync [SUBCMD]` - use [obsidian-headless](https://obsidian.md/help/sync/headless) to access official obsidian sync service. Default off, enable with `opts.sync.enabled = true`, for more see [Sync](https://obsidian-nvim.github.io/obsidian.nvim/Sync).

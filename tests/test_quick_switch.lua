@@ -49,7 +49,7 @@ end
 
 T["quick switch"]["cache picker filters attachments and missing links"] = function()
   h.child_mock_vault_contents(child, {
-    ["Note.md"] = "# Note\n[[Missing]]\n![[Image.png]]\n![[Missing.pdf]]\nA [[Missing|label]]",
+    ["Note.md"] = "---\naliases: [Known Alias]\n---\n# Note\n[[Known Alias]]\n[[Missing]]\n![[Image.png]]\n![[Missing.pdf]]\nA [[Missing|label]]",
     ["Image.png"] = "attachment",
   })
   h.child_setup_cache(child)
@@ -92,7 +92,20 @@ picker.select = function(values, opts, callback)
   end
 end
 
+local attachments_all = cache.attachments.all
+local notes_rel_path = cache.notes.rel_path
+local attachment_reads, relative_paths = 0, 0
+cache.attachments.all = function()
+  attachment_reads = attachment_reads + 1
+  return attachments_all()
+end
+cache.notes.rel_path = function(path)
+  relative_paths = relative_paths + 1
+  return notes_rel_path(path)
+end
 cache.find_files {}
+cache.attachments.all = attachments_all
+cache.notes.rel_path = notes_rel_path
 cache.find_files { show_existing_only = false }
 cache.find_files { show_existing_only = false, show_attachments = true }
 
@@ -142,6 +155,8 @@ picker.select = original_select
 
 return {
   default_seen = snapshots[1],
+  attachment_reads = attachment_reads,
+  relative_paths = relative_paths,
   missing_seen = snapshots[2],
   attachment_seen = snapshots[3],
   formatted_missing = formatted_missing,
@@ -158,12 +173,16 @@ return {
 }
   ]]
 
+  eq(0, result.attachment_reads)
+  eq(1, result.relative_paths)
   eq(true, result.default_seen["Note"])
+  eq(true, result.default_seen["Note | Known Alias"])
   eq(nil, result.default_seen["Image.png"])
   eq(nil, result.default_seen["Missing"])
   eq(nil, result.default_seen["Missing.pdf"])
 
   eq(true, result.missing_seen["Note"])
+  eq(nil, result.missing_seen["Known Alias"])
   eq(true, result.missing_seen["Missing"])
   eq(nil, result.missing_seen["Image.png"])
   eq(nil, result.missing_seen["Missing.pdf"])
@@ -181,13 +200,13 @@ return {
   eq(false, result.captured_add_attachment.opts.insert)
   eq(result.expected_missing_attachment_path, result.captured_add_attachment.opts.dst)
   eq({
-    "Note.md:2:1",
+    "Note.md:6:1",
     "",
     "```markdown",
     "[[Missing]]",
     "```",
     "",
-    "Note.md:5:3",
+    "Note.md:9:3",
     "",
     "```markdown",
     "[[Missing|label]]",
@@ -196,7 +215,11 @@ return {
   eq("markdown", result.missing_preview_filetype)
   eq("wipe", result.missing_preview_bufhidden)
   eq({
+    "---",
+    "aliases: [Known Alias]",
+    "---",
     "# Note",
+    "[[Known Alias]]",
     "[[Missing]]",
     "![[Image.png]]",
     "![[Missing.pdf]]",
