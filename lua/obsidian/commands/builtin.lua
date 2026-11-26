@@ -1,6 +1,6 @@
 ---@param commands obsidian.commands.Module
 return function(commands)
-  local add = commands.add
+  local register = commands.register
 
   ---@param ctx obsidian.commands.Context
   ---@return boolean
@@ -16,14 +16,14 @@ return function(commands)
     return Obsidian.opts.templates.enabled == true
   end
 
-  add {
+  register {
     name = "check",
     fn = function()
       return require "obsidian.commands.check"()
     end,
   }
 
-  add {
+  register {
     name = "today",
     nargs = "?",
     cond = daily_enabled,
@@ -32,7 +32,7 @@ return function(commands)
     end,
   }
 
-  add {
+  register {
     name = "yesterday",
     cond = daily_enabled,
     fn = function()
@@ -40,7 +40,7 @@ return function(commands)
     end,
   }
 
-  add {
+  register {
     name = "tomorrow",
     cond = daily_enabled,
     fn = function()
@@ -48,7 +48,7 @@ return function(commands)
     end,
   }
 
-  add {
+  register {
     name = "dailies",
     nargs = "*",
     cond = daily_enabled,
@@ -57,7 +57,7 @@ return function(commands)
     end,
   }
 
-  add {
+  register {
     name = "new",
     nargs = "*",
     fn = function(data)
@@ -68,7 +68,7 @@ return function(commands)
     end,
   }
 
-  add {
+  register {
     name = "open",
     nargs = "*",
     complete = commands.note_complete,
@@ -77,7 +77,7 @@ return function(commands)
     end,
   }
 
-  add {
+  register {
     name = "tags",
     nargs = "*",
     fn = function(data)
@@ -85,7 +85,7 @@ return function(commands)
     end,
   }
 
-  add {
+  register {
     name = "properties",
     nargs = "*",
     fn = function(data)
@@ -93,7 +93,7 @@ return function(commands)
     end,
   }
 
-  add {
+  register {
     name = "search",
     nargs = "?",
     fn = function(data)
@@ -101,7 +101,7 @@ return function(commands)
     end,
   }
 
-  add {
+  register {
     name = "sync",
     nargs = "?",
     cond = function()
@@ -121,7 +121,7 @@ return function(commands)
     end,
   }
 
-  add {
+  register {
     name = "new_from_template",
     nargs = "*",
     cond = templates_enabled,
@@ -130,7 +130,7 @@ return function(commands)
     end,
   }
 
-  add {
+  register {
     name = "quick_switch",
     nargs = "?",
     fn = function(data)
@@ -143,14 +143,14 @@ return function(commands)
     end,
   }
 
-  add {
+  register {
     name = "rebuild_cache",
     fn = function()
       return require "obsidian.commands.rebuild_cache"()
     end,
   }
 
-  add {
+  register {
     name = "workspace",
     nargs = "?",
     fn = function(data)
@@ -158,7 +158,7 @@ return function(commands)
     end,
   }
 
-  add {
+  register {
     name = "help",
     nargs = "?",
     complete = commands.help_complete,
@@ -167,7 +167,7 @@ return function(commands)
     end,
   }
 
-  add {
+  register {
     name = "helpgrep",
     nargs = "?",
     fn = function(data)
@@ -175,7 +175,7 @@ return function(commands)
     end,
   }
 
-  add {
+  register {
     name = "unique_note",
     nargs = "?",
     cond = function()
@@ -186,14 +186,14 @@ return function(commands)
     end,
   }
 
-  add {
+  register {
     name = "bookmarks",
     fn = function()
       return require "obsidian.commands.bookmarks"()
     end,
   }
 
-  add {
+  register {
     name = "backlinks",
     cond = in_note,
     fn = function()
@@ -201,7 +201,7 @@ return function(commands)
     end,
   }
 
-  add {
+  register {
     name = "template",
     nargs = "?",
     cond = function(ctx)
@@ -212,7 +212,7 @@ return function(commands)
     end,
   }
 
-  add {
+  register {
     name = "link_new",
     nargs = "?",
     cond = in_note,
@@ -221,7 +221,7 @@ return function(commands)
     end,
   }
 
-  add {
+  register {
     name = "link",
     nargs = "?",
     complete = commands.note_complete,
@@ -231,7 +231,7 @@ return function(commands)
     end,
   }
 
-  add {
+  register {
     name = "links",
     cond = in_note,
     fn = function()
@@ -239,7 +239,7 @@ return function(commands)
     end,
   }
 
-  add {
+  register {
     name = "follow_link",
     nargs = "?",
     cond = in_note,
@@ -248,7 +248,7 @@ return function(commands)
     end,
   }
 
-  add {
+  register {
     name = "toggle_checkbox",
     range = true,
     cond = function(ctx)
@@ -259,7 +259,7 @@ return function(commands)
     end,
   }
 
-  add {
+  register {
     name = "rename",
     nargs = "?",
     cond = in_note,
@@ -268,7 +268,7 @@ return function(commands)
     end,
   }
 
-  add {
+  register {
     name = "paste_img",
     nargs = "?",
     cond = in_note,
@@ -277,7 +277,7 @@ return function(commands)
     end,
   }
 
-  add {
+  register {
     name = "extract_note",
     nargs = "?",
     range = true,
@@ -285,11 +285,16 @@ return function(commands)
       return ctx.in_note and ctx.has_range
     end,
     fn = function(data)
-      require("obsidian.actions").extract_note(data.args)
+      local extract_note = require("obsidian.actions").extract_note
+      if data.range and data.range > 0 then
+        extract_note(data.args, data.line1, data.line2)
+      else
+        extract_note(data.args)
+      end
     end,
   }
 
-  add {
+  register {
     name = "toc",
     cond = in_note,
     fn = function()
@@ -297,7 +302,7 @@ return function(commands)
     end,
   }
 
-  add {
+  register {
     name = "footnotes",
     cond = in_note,
     fn = function()

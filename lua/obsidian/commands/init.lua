@@ -21,10 +21,23 @@ local picker = require "obsidian.picker"
 ---@class obsidian.commands.Module
 ---@field commands table<string, obsidian.commands.Spec>
 local M = { commands = {} }
+local legacy_enabled = false
 
----Add or replace a command. Handlers are always supplied explicitly.
+local function registry_is_locked()
+  if legacy_enabled then
+    log.warn_once "Command registry customization requires legacy_commands = false"
+    return true
+  end
+  return false
+end
+
+---Register or replace a command. Handlers are always supplied explicitly.
 ---@param spec obsidian.commands.Spec
-M.add = function(spec)
+---@return fun()? unregister Removes this registration if it is still current; nil in legacy mode.
+M.register = function(spec)
+  if registry_is_locked() then
+    return
+  end
   vim.validate("spec", spec, "table")
   vim.validate("name", spec.name, function(name)
     return type(name) == "string" and name:match "^[%w_%-]+$" ~= nil
@@ -47,50 +60,25 @@ M.add = function(spec)
     "Use fn and cond instead of func and note_action"
   )
 
-  M.commands[spec.name] = vim.tbl_extend("force", { nargs = 0 }, spec)
-end
+  local name = spec.name
+  local entry = vim.tbl_extend("force", { nargs = 0 }, spec)
+  M.commands[name] = entry
 
----Remove a command. Removing an unknown name is a no-op.
----@param name string
-M.del = function(name)
-  M.commands[name] = nil
-end
-
----@alias obsidian.CommandConfig obsidian.commands.Config
----@class obsidian.commands.Config
----@field complete? function|string
----@field nargs? obsidian.commands.Nargs
----@field range? boolean
----@field func? fun(data: obsidian.commands.Args)
----@field name? string
----@field note_action? boolean
----@field cond? fun(ctx: obsidian.commands.Context): boolean
-
----Register a command using the deprecated filename-based API.
----@deprecated Use commands.add { name = name, fn = handler, ... } instead.
----@param name string
----@param config obsidian.commands.Config
-M.register = function(name, config)
-  log.warn_once "register_command()/commands.register() is deprecated; use commands.add { name = ..., fn = ... } instead"
-  local cond = config.cond
-  if config.note_action then
-    cond = function(ctx)
-      return ctx.in_note and (config.cond == nil or config.cond(ctx))
+  return function()
+    if M.commands[name] == entry then
+      M.commands[name] = nil
     end
   end
-  M.add {
-    name = name,
-    fn = config.func or function(data)
-      return require("obsidian.commands." .. name)(data)
-    end,
-    cond = cond,
-    complete = config.complete,
-    nargs = config.nargs,
-    range = config.range,
-  }
 end
 
-M.install_legacy = legacycommands.install
+---Remove a command by name, including a built-in. An unknown name is a no-op.
+---@param name string
+M.unregister = function(name)
+  if registry_is_locked() then
+    return
+  end
+  M.commands[name] = nil
+end
 
 ---@param has_range boolean
 ---@return obsidian.commands.Context
@@ -294,5 +282,12 @@ M.note_complete = function(_, cmdline)
 end
 
 require "obsidian.commands.builtin"(M)
+local builtins = vim.deepcopy(M.commands)
+
+M.install_legacy = function()
+  legacy_enabled = true
+  M.commands = vim.deepcopy(builtins)
+  legacycommands.install()
+end
 
 return M

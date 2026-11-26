@@ -18,10 +18,10 @@ end
 ]],
 }
 
-T["add accepts a function without a module and defaults to zero arguments"] = function()
+T["register accepts a function without a module and defaults to zero arguments"] = function()
   local result = child.lua [[
 local calls = 0
-commands.add { name = "custom", fn = function(data)
+commands.register { name = "custom", fn = function(data)
   calls = calls + 1
   assert(data.args == "" and #data.fargs == 0)
 end }
@@ -32,18 +32,31 @@ return { calls, has_command("custom"), #errors, commands.commands.custom.nargs }
   eq({ 1, true, 1, 0 }, result)
 end
 
-T["add replaces a command and del is idempotent"] = function()
+T["cleanup removes only its own registration"] = function()
   local result = child.lua [[
 local calls = {}
-commands.add { name = "custom", fn = function() calls[#calls + 1] = "old" end }
-commands.add { name = "custom", fn = function() calls[#calls + 1] = "new" end }
+local cleanup_old = commands.register { name = "custom", fn = function() calls[#calls + 1] = "old" end }
+local cleanup_new = commands.register { name = "custom", fn = function() calls[#calls + 1] = "new" end }
+cleanup_old()
 vim.cmd.Obsidian "custom"
-commands.del "custom"
-commands.del "custom"
+cleanup_new()
+cleanup_new()
 vim.cmd.Obsidian "custom"
 return { calls, has_command("custom"), #errors }
 ]]
   eq({ { "new" }, false, 1 }, result)
+end
+
+T["unregister removes a built-in by name and is idempotent"] = function()
+  local result = child.lua [[
+Obsidian.opts.daily_notes.enabled = true
+local before = has_command("today")
+commands.unregister "today"
+commands.unregister "today"
+vim.cmd.Obsidian "today"
+return { before, has_command("today"), #errors }
+]]
+  eq({ true, false, 1 }, result)
 end
 
 T["invalid specs fail at registration"] = function()
@@ -65,7 +78,7 @@ local invalid = {
 }
 local results = {}
 for _, spec in ipairs(invalid) do
-  results[#results + 1] = pcall(commands.add, spec)
+  results[#results + 1] = pcall(commands.register, spec)
 end
 return results
 ]]
@@ -90,7 +103,7 @@ local cases = {
 }
 for _, case in ipairs(cases) do
   local captured
-  commands.add { name = "custom", nargs = case.nargs, fn = function(data) captured = data end }
+  commands.register { name = "custom", nargs = case.nargs, fn = function(data) captured = data end }
   vim.cmd("Obsidian custom " .. case.args)
   assert((captured ~= nil) == case.valid, vim.inspect(case))
   if captured then
@@ -107,7 +120,7 @@ T["conditions dynamically guard discovery and execution"] = function()
   local result = child.lua [[
 local enabled, calls = false, 0
 local contexts = {}
-commands.add {
+commands.register {
   name = "custom",
   cond = function(ctx)
     contexts[#contexts + 1] = ctx
@@ -130,7 +143,7 @@ end
 
 T["note context uses the buffer marker rather than filetype"] = function()
   local result = child.lua [[
-commands.add { name = "custom", cond = function(ctx) return ctx.in_note end, fn = function() end }
+commands.register { name = "custom", cond = function(ctx) return ctx.in_note end, fn = function() end }
 vim.bo.filetype = "markdown"
 local markdown = has_command("custom")
 vim.bo.filetype = "quarto"
@@ -146,13 +159,13 @@ T["range support is separate from conditional visibility"] = function()
   local result = child.lua [[
 vim.api.nvim_buf_set_lines(0, 0, -1, false, { "one", "two", "three" })
 local captured = {}
-commands.add { name = "both", range = true, fn = function(data) captured[#captured + 1] = data end }
-commands.add {
+commands.register { name = "both", range = true, fn = function(data) captured[#captured + 1] = data end }
+commands.register {
   name = "selection", range = true,
   cond = function(ctx) return ctx.has_range end,
   fn = function() end,
 }
-commands.add { name = "normal", fn = function() error("range should be rejected") end }
+commands.register { name = "normal", fn = function() error("range should be rejected") end }
 local choices = {
   has_command("both"), has_command("both", "'<,'>Obsidian "),
   has_command("selection"), has_command("selection", "1,2Obsidian "),
@@ -169,7 +182,7 @@ end
 T["completion filters prefixes and preserves function arguments"] = function()
   local result = child.lua [[
 local captured
-commands.add {
+commands.register {
   name = "custom", nargs = "*", range = true,
   complete = function(...) captured = { ... }; return { "value" } end,
   fn = function() end,
@@ -185,7 +198,7 @@ end
 T["argument completion respects availability and string completion types"] = function()
   local result = child.lua [[
 local enabled, calls = false, 0
-commands.add {
+commands.register {
   name = "custom", nargs = "*",
   cond = function() return enabled end,
   complete = function() calls = calls + 1; return { "value" } end,
@@ -195,7 +208,7 @@ local hidden = complete("Obsidian custom ")
 enabled = true
 local shown = complete("Obsidian custom ")
 local range_hidden = complete("1,2Obsidian custom ")
-commands.add { name = "custom", nargs = "*", complete = "command", fn = function() end }
+commands.register { name = "custom", nargs = "*", complete = "command", fn = function() end }
 local strings = complete("Obsidian custom Obsid")
 return { hidden, shown, range_hidden, calls, vim.list_contains(strings, "Obsidian") }
 ]]
@@ -206,9 +219,9 @@ T["condition failures do not break other commands or run handlers"] = function()
   local result = child.lua [[
 local warnings = {}
 vim.notify_once = function(message) warnings[message] = true end
-commands.add { name = "broken", cond = function() error("broken condition") end, fn = function() error("ran") end }
-commands.add { name = "invalid", cond = function() return "yes" end, fn = function() error("ran") end }
-commands.add { name = "working", fn = function() end }
+commands.register { name = "broken", cond = function() error("broken condition") end, fn = function() error("ran") end }
+commands.register { name = "invalid", cond = function() return "yes" end, fn = function() error("ran") end }
+commands.register { name = "working", fn = function() end }
 local choices = complete("Obsidian ")
 complete("Obsidian ")
 vim.cmd.Obsidian "broken"
@@ -269,7 +282,7 @@ T["menu preserves originating buffer and range"] = function()
 vim.api.nvim_buf_set_lines(0, 0, -1, false, { "one", "two", "three" })
 _G.origin = vim.api.nvim_get_current_buf()
 _G.captured = nil
-commands.add {
+commands.register {
   name = "custom", range = true,
   cond = function(ctx) return ctx.bufnr == origin and ctx.has_range end,
   fn = function(data) captured = { buf = vim.api.nvim_get_current_buf(), data = data } end,
@@ -293,7 +306,7 @@ T["menu rechecks conditions and deletion at selection time"] = function()
   child.lua [[
 _G.enabled = true
 _G.calls = 0
-commands.add { name = "custom", cond = function() return enabled end, fn = function() calls = calls + 1 end }
+commands.register { name = "custom", cond = function() return enabled end, fn = function() calls = calls + 1 end }
 require("obsidian.picker").select = function(_, _, callback) _G.choose = callback end
 vim.cmd.Obsidian()
 enabled = false
@@ -303,7 +316,7 @@ choose { "custom" }
   child.lua [[
 enabled = true
 vim.cmd.Obsidian()
-commands.del "custom"
+commands.unregister "custom"
 choose { "custom" }
 ]]
   h.child_wait(child, "return #errors == 2")
@@ -313,7 +326,7 @@ end
 T["menu rejects a deleted buffer"] = function()
   child.lua [[
 _G.calls = 0
-commands.add { name = "custom", fn = function() calls = calls + 1 end }
+commands.register { name = "custom", fn = function() calls = calls + 1 end }
 require("obsidian.picker").select = function(_, _, callback) _G.choose = callback end
 local origin = vim.api.nvim_get_current_buf()
 vim.cmd.Obsidian()
@@ -325,40 +338,25 @@ choose { "custom" }
   eq(0, child.lua_get "calls")
 end
 
-T["deprecated APIs support explicit handlers and lazy filename lookup"] = function()
+T["filename-based registration has no alias or implicit handler"] = function()
   local result = child.lua [[
-local calls, warnings = {}, {}
-vim.notify_once = function(message) warnings[message] = true end
+local obsidian = require "obsidian"
+local loaded = false
 package.preload["obsidian.commands.extension"] = function()
-  return function(data) calls[#calls + 1] = data.args end
+  loaded = true
+  return function() end
 end
-require("obsidian").register_command("extension", { nargs = "?" })
-commands.register("explicit", { func = function() calls[#calls + 1] = "explicit" end })
-vim.cmd "Obsidian extension lazy"
-vim.cmd.Obsidian "explicit"
-assert(#errors == 0, vim.inspect(errors))
-return { calls, #vim.tbl_keys(warnings) }
+local old_signature = pcall(commands.register, "extension", { nargs = "?" })
+local missing_handler = pcall(commands.register, { name = "extension" })
+return {
+  commands == require("obsidian.commands"),
+  obsidian.register_command == nil,
+  commands.add == nil,
+  commands.del == nil,
+  old_signature, missing_handler, loaded, has_command("extension"),
+}
 ]]
-  eq({ { "lazy", "explicit" }, 1 }, result)
-end
-
-T["deprecated note_action combines with a supplied condition"] = function()
-  local result = child.lua [[
-local enabled, calls = false, 0
-commands.register("custom", {
-  note_action = true,
-  cond = function() return enabled end,
-  func = function() calls = calls + 1 end,
-})
-local outside = has_command("custom")
-vim.b.obsidian_buffer = true
-local disabled = has_command("custom")
-enabled = true
-local inside = has_command("custom")
-vim.cmd.Obsidian "custom"
-return { outside, disabled, inside, calls }
-]]
-  eq({ false, false, true, 1 }, result)
+  eq({ true, true, true, true, false, false, false, false }, result)
 end
 
 T["inline builtin adapters delegate to actions and pickers"] = function()
@@ -395,18 +393,21 @@ return captured
   }, result)
 end
 
-T["legacy commands and picker creation use inline handlers"] = function()
+T["legacy mode disables command registry customization"] = function()
   local result = child.lua [[
+local function unexpected() error("custom handler ran") end
+local cleanup = commands.register { name = "tags", fn = unexpected }
+commands.unregister "today"
 commands.install_legacy()
-local captured = {}
-commands.commands.tags.fn = function(data) captured.tags = data.fargs end
-commands.commands.new.fn = function(data) captured[#captured + 1] = data.args end
+cleanup()
+local rejected = commands.register { name = "tags", fn = unexpected, cond = function() return false end }
+commands.unregister "today"
+local captured
+require("obsidian.actions").search_tags = function(tags) captured = tags end
 vim.cmd "ObsidianTags one two"
-vim.cmd "ObsidianNew legacy"
-require("obsidian.picker.mappings").new_note("picker")
-return { captured.tags, captured[1], captured[2] }
+return { captured, has_command("tags"), commands.commands.today ~= nil, rejected == nil }
 ]]
-  eq({ { "one", "two" }, "legacy", "picker" }, result)
+  eq({ { "one", "two" }, true, true, true }, result)
 end
 
 T["separate legacy user commands remain available"] = function()

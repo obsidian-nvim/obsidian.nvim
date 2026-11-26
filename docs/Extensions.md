@@ -9,14 +9,14 @@ tags:
 
 Example integration: [obsidian-markmap.nvim](https://github.com/obsidian-nvim/obsidian-markmap.nvim).
 
-## Add a command
+## Register a command
 
-Register subcommands through `require("obsidian").commands`, using the same `add`/`del` pattern as [[LSP#Code Action API|code actions]]. Pass your handler in the spec; you can keep its implementation anywhere in your plugin.
+Use `require("obsidian.commands").register(spec)` to register a `:Obsidian` subcommand. Pass your handler in the spec; you can keep its implementation anywhere in your plugin. Set `legacy_commands = false` to enable registry customization.
 
 ```lua
-local commands = require("obsidian").commands
+local commands = require "obsidian.commands"
 
-commands.add {
+local unregister = commands.register {
   name = "map",
   fn = function(data)
     require("my_plugin").map(data)
@@ -40,7 +40,7 @@ Users can run `:Obsidian map` or select `map` from `:Obsidian`. The command also
 | `range`    | `boolean`                                                 | `false`   | Whether the command accepts an explicit Ex range.                                                     |
 | `complete` | function or string                                        | None      | Neovim completion function `(arg_lead, cmdline, cursor_pos)` or completion type such as `"file"`.     |
 
-Registering an existing name replaces its spec. Invalid specs raise an error during registration.
+Registering an existing name replaces its spec. Invalid specs raise an error during registration. In legacy mode, registration warns and returns `nil` without changing the registry.
 
 ### Conditional availability
 
@@ -53,7 +53,7 @@ Registering an existing name replaces its spec. Invalid specs raise an error dur
 Read current config inside your condition so that workspace/config changes take effect without re-registering:
 
 ```lua
-commands.add {
+commands.register {
   name = "selection_map",
   range = true,
   fn = function(data)
@@ -73,18 +73,20 @@ The command menu preserves the originating buffer and range, then rechecks avail
 
 ### Remove or override a command
 
+Call the cleanup function that `register` returned to remove your registration. It does nothing if someone has removed or replaced that registration.
+
 ```lua
-commands.del "map"
-commands.del "today" -- Built-ins use the same registry.
+unregister() -- Removes the "map" registration from the example above.
+commands.unregister "today" -- Remove a built-in by name.
 ```
 
-Deleting an unknown name does nothing. A deleted command stays absent for the session unless you add it again. You can override a built-in with `commands.add` using its name.
+Removing an unknown name does nothing. To override a built-in, register a spec with the same name. Removing the override leaves the name absent until you register it again.
 
 Register customizations after loading obsidian.nvim, for example in its `callbacks.post_setup` callback.
 
 ## Migrate from filename-based registration
 
-`require("obsidian").register_command(name, config)` and `commands.register(name, config)` are deprecated. They still support `func`, `note_action`, and lazy lookup of `obsidian.commands.<name>`, but warn once per session.
+Use `commands.register(spec)` in place of `require("obsidian").register_command(name, config)` or `commands.register(name, config)`. Put the name and handler in the spec.
 
 Replace:
 
@@ -96,7 +98,7 @@ require("obsidian").register_command("map", { nargs = 0, note_action = true })
 with:
 
 ```lua
-require("obsidian").commands.add {
+require("obsidian.commands").register {
   name = "map",
   fn = function(data)
     require("my_plugin").map(data)
@@ -109,4 +111,4 @@ require("obsidian").commands.add {
 
 Rename `func` to `fn` if you already supply a handler. Replace `note_action = true` with a condition checking `ctx.in_note`. The new API does not infer handler paths or require files under `lua/obsidian/commands/`.
 
-This registration deprecation is separate from the legacy `:ObsidianToday`-style commands controlled by `legacy_commands`.
+The `legacy_commands` option still controls `:ObsidianToday`-style user commands.

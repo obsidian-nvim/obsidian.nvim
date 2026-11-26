@@ -67,14 +67,6 @@ M.insert_tag = function(tag)
   vim.api.nvim_put({ "#" .. tag }, "", false, true)
 end
 
-M.new_note = function(query)
-  if not query or vim.trim(query) == "" then
-    return
-  end
-  ---@diagnostic disable-next-line: missing-fields,param-type-mismatch
-  require("obsidian.commands").commands.new.fn { args = query }
-end
-
 ---@param arg string|obsidian.picker.Entry
 M.bookmark = function(arg)
   local path = type(arg) == "table" and arg.filename or arg

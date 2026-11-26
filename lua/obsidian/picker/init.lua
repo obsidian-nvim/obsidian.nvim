@@ -300,7 +300,15 @@ M._note_query_mappings = function()
   if key_is_set(note_mappings.new) then
     mappings[note_mappings.new] = {
       desc = "new",
-      callback = Mappings.new_note,
+      callback = function(id)
+        if not id or vim.trim(id) == "" then
+          return
+        end
+
+        require("obsidian.actions").new(id, function(note)
+          note:open { sync = true }
+        end)
+      end,
     }
   end
 

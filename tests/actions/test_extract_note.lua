@@ -65,4 +65,30 @@ T["extract_note handles multibyte UTF-8 and trailing empty line in V mode"] = fu
   eq("", extracted_lines[#extracted_lines])
 end
 
+T["extract_note from the ranged menu uses the requested lines"] = function()
+  local source_path = open_source { "Old selection", "Extract this", "мир 😀", "", "Keep this" }
+  local source_buf = child.api.nvim_get_current_buf()
+  child.lua [[
+    vim.cmd.runtime "plugin/obsidian.lua"
+    vim.api.nvim_buf_set_mark(0, "<", 1, 0, {})
+    vim.api.nvim_buf_set_mark(0, ">", 1, 2, {})
+    require("obsidian.api").input = function() return "Ranged Note" end
+    require("obsidian.picker").select = function(choices, _, callback)
+      assert(vim.list_contains(choices, "extract_note"))
+      callback { "extract_note" }
+    end
+    vim.cmd "2,4Obsidian"
+  ]]
+  h.child_wait(child, ("return vim.api.nvim_get_current_buf() ~= %d"):format(source_buf))
+
+  local source_lines = h.read(source_path)
+  eq(3, #source_lines)
+  eq("Old selection", source_lines[1])
+  eq(true, source_lines[2]:match "^%[%[.*|Ranged Note%]%]$" ~= nil)
+  eq("Keep this", source_lines[3])
+
+  local extracted_lines = child.api.nvim_buf_get_lines(0, 0, -1, false)
+  eq({ "Extract this", "мир 😀", "" }, vim.list_slice(extracted_lines, #extracted_lines - 2))
+end
+
 return T

@@ -632,14 +632,27 @@ end
 --- Extract the selected text into a new note
 --- and replace the selection with a link to the new note.
 ---@param label string?
-M.extract_note = function(label)
-  local viz = api.get_visual_selection()
-  if not viz then
-    log.err "`Obsidian extract_note` must be called in visual mode"
-    return
+---@param line1? integer First line of an explicit Ex range (1-based).
+---@param line2? integer Last line of an explicit Ex range (inclusive).
+M.extract_note = function(label, line1, line2)
+  local bufnr = vim.api.nvim_get_current_buf()
+  local content, range
+  if line1 and line2 then
+    if line1 < 1 or line1 > line2 or line2 > vim.api.nvim_buf_line_count(bufnr) then
+      log.err "The extraction range is no longer valid"
+      return
+    end
+    content = vim.api.nvim_buf_get_lines(bufnr, line1 - 1, line2, true)
+    range = Range.new(line1 - 1, 0, line2 - 1, #content[#content])
+  else
+    local viz = api.get_visual_selection()
+    if not viz then
+      log.err "`Obsidian extract_note` must be called with a range or in visual mode"
+      return
+    end
+    content = vim.split(viz.selection, "\n", { plain = true })
+    range = selection_range(viz, bufnr)
   end
-
-  local content = vim.split(viz.selection, "\n", { plain = true })
 
   if label ~= nil and string.len(label) > 0 then
     label = vim.trim(label)
@@ -658,9 +671,8 @@ M.extract_note = function(label)
   note:write()
 
   -- replace selection with link to new note
-  local range = selection_range(viz, vim.api.nvim_get_current_buf())
   if range then
-    Link.replace { bufnr = vim.api.nvim_get_current_buf(), range = range, text = note:format_link() }
+    Link.replace { bufnr = bufnr, range = range, text = note:format_link() }
     require("obsidian.ui").update(0)
   end
 
