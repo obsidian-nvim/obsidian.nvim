@@ -191,7 +191,7 @@ M.smart_action = function()
   elseif api.cursor_tag() then
     return legacy and "<cmd>ObsidianTags<cr>" or "<cmd>Obsidian tags<cr>"
   elseif has_markdown_folding() and (api.cursor_heading() or api.cursor_frontmatter()) then
-    return "za"
+    return "<cmd>lua require('obsidian.folding').cycle()<cr>"
   elseif Obsidian.opts.checkbox.enabled and (api.cursor_checkbox() or Obsidian.opts.checkbox.create_new) then
     return legacy and "<cmd>ObsidianToggleCheckbox<cr>" or "<cmd>Obsidian toggle_checkbox<cr>"
   else

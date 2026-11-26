@@ -140,6 +140,15 @@ local function restore_cursor(cursor)
   vim.api.nvim_win_set_cursor(0, cursor)
 end
 
+---@param outline obsidian.folding.Layout
+---@param tree obsidian.folding.Subtree
+local function native_folds_ready(outline, tree)
+  local function has_fold(node)
+    return outline.levels[node.first] == ">" .. vim.fn.foldlevel(node.first)
+  end
+  return has_fold(tree) and vim.iter(tree.children):all(has_fold)
+end
+
 ---@param tree obsidian.folding.Subtree
 local function subtree_closed(tree)
   return vim.fn.foldclosedend(tree.first) == tree.last
@@ -170,7 +179,16 @@ M.cycle = function()
     return
   end
 
-  vim.wo[0][0].foldenable = true
+  local wo = vim.wo[0][0]
+  wo.foldenable = true
+  if not native_folds_ready(outline, tree) then
+    -- An edit can change a section's fold start outside Neovim's incremental
+    -- update range. Re-evaluate the expression without resetting manual folds.
+    wo.foldexpr = foldexpr
+    if not native_folds_ready(outline, tree) then
+      return
+    end
+  end
   local first = vim.fn.foldclosed(tree.first)
   if first ~= -1 and first ~= tree.first then
     return -- An ancestor hides this heading.

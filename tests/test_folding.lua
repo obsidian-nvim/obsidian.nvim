@@ -162,6 +162,31 @@ peer body]]
   eq({ 2, -1, -1 }, child.lua_get [[FoldEnds(1, 3, 5)]])
 end
 
+T["first local cycle refreshes a fold missing after a body edit"] = function()
+  open_note("# Initially empty\n" .. ("\n"):rep(7) .. "# Peer\npeer body")
+  child.lua [[
+    vim.wo.foldlevel = 99
+    vim.cmd("9foldclose")
+    vim.api.nvim_buf_set_lines(0, 7, 8, false, { "body far from its heading" })
+    vim.api.nvim_win_set_cursor(0, { 1, 0 })
+    Actions.fold_cycle()
+  ]]
+  eq({ 8, 10 }, child.lua_get [[FoldEnds(1, 9)]])
+  child.lua [[Actions.fold_cycle()]]
+  eq({ -1, 10 }, child.lua_get [[FoldEnds(1, 9)]])
+end
+
+T["opening a subtree refreshes a missing direct child fold"] = function()
+  open_note("# Parent\nparent body\n## Initially empty\n" .. ("\n"):rep(7) .. "# Peer\npeer body")
+  child.lua [[
+    Folding.set_global("overview")
+    vim.api.nvim_buf_set_lines(0, 9, 10, false, { "body far from the child heading" })
+    vim.api.nvim_win_set_cursor(0, { 1, 0 })
+    Actions.fold_cycle()
+  ]]
+  eq({ -1, 10, 12 }, child.lua_get [[FoldEnds(1, 3, 11)]])
+end
+
 T["global fold state belongs to a window and buffer"] = function()
   open_note()
   child.lua [[
