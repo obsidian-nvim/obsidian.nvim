@@ -12,6 +12,8 @@ See [LSP code actions](LSP.md#code-actions) for actions exposed via the LSP inte
 | `follow_link`          | `n`      | Open the link under the cursor.                              | `link`                       |
 | `nav_link`             | `n`      | Navigate to next/previous link.                              | `direction`, `include_hints` |
 | `smart_action`         | `n`      | Context-aware action on the cursor.                          |                              |
+| `fold_cycle`           | `n`      | Cycle a heading or toggle Properties. See [[Folding]].       |                              |
+| `fold_cycle_global`    | `n`      | Cycle the window's outline view. See [[Folding]].             |                              |
 | `new`                  | `n`      | Create a new note.                                           | `id`                         |
 | `new_from_template`    | `n`      | Create a new note from a template.                           | `id`, `template`             |
 | `unique_note`          | `n`      | Create a unique note.                                        | `timestamp`                  |

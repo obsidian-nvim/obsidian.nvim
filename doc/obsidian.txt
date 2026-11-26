@@ -60,8 +60,8 @@ Keymaps ~
   - If cursor is on a tag, show all notes with that tag in a picker.
   - If cursor is on a checkbox, toggle the checkbox, see Checkbox.create_new {9}
     .
-  - If cursor is on a heading, cycle the fold of that heading, see Folding {10}
-    to set this up.
+  - If cursor is on a heading or in frontmatter, toggle its fold. See Folding
+    {10} for setup and Org-style fold actions.
 - `nav_link`, bind to `[o` and `]o` will navigate cursor to next valid link in
   the buffer.
 

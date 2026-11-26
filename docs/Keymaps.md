@@ -69,7 +69,9 @@ The plugin provides the following remappable functions:
   - If cursor is on a link, follow the link
   - If cursor is on a tag, show all notes with that tag in a picker
   - If cursor is on a checkbox, toggle the checkbox
-  - If cursor is on a heading, cycle the fold of that heading
+  - If cursor is on a heading or in frontmatter, toggle the fold with `za` when folding is configured
+- `fold_cycle` and `fold_cycle_global`
+  - Cycle a heading, toggle Properties, or cycle the whole note with the opt-in outline folding source. See [[Folding]].
 - `increment`
   - Scrolls a note embed under the cursor up; otherwise behaves like `<C-a>`
 - `decrement`

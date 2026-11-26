@@ -69,7 +69,7 @@ Vault-wide block candidates are indexed in memory on first use and updated per n
   - If cursor is on a link, follow the link.
   - If cursor is on a tag, show all notes with that tag in a picker.
   - If cursor is on a checkbox, toggle the checkbox, see [Checkbox.create_new](https://obsidian-nvim.github.io/obsidian.nvim/Checkbox#create-new).
-  - If cursor is on a heading, cycle the fold of that heading, see [Folding](https://obsidian-nvim.github.io/obsidian.nvim/Folding) to set this up.
+  - If cursor is on a heading or in frontmatter, toggle its fold. See [Folding](https://obsidian-nvim.github.io/obsidian.nvim/Folding) for setup and Org-style fold actions.
 - `nav_link`, bind to `[o` and `]o` will navigate cursor to next valid link in the buffer.
 
 For other available actions and remapping default ones, see [Keymaps](https://obsidian-nvim.github.io/obsidian.nvim/Keymaps)

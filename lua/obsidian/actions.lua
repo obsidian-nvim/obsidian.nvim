@@ -155,6 +155,16 @@ M.nav_link = function(direction, include_hints)
   end
 end
 
+--- Cycle the Markdown subtree at the cursor or toggle Properties (see Folding).
+M.fold_cycle = function()
+  require("obsidian.folding").cycle()
+end
+
+--- Cycle the outline view in the current window (see Folding).
+M.fold_cycle_global = function()
+  require("obsidian.folding").cycle_global()
+end
+
 local function has_markdown_folding()
   if vim.g.markdown_folding == 1 then
     return true
@@ -167,7 +177,7 @@ end
 -- If cursor is on a link, follow the link
 -- If cursor is on a tag, show all notes with that tag in a picker
 -- If cursor is on a checkbox, toggle the checkbox
--- If cursor is on a heading, cycle the fold of that heading
+-- If cursor is on a heading or in frontmatter, toggle the fold
 M.smart_action = function()
   local legacy = Obsidian.opts.legacy_commands
   if
