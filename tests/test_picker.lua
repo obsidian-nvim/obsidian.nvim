@@ -134,6 +134,96 @@ T["get uses configured picker if it becomes available before first picker call"]
   end)
 end
 
+T["get loads lazy-loaded configured picker when not yet on runtimepath"] = function()
+  local loaded = 0
+  local invoked = 0
+  local original_preload = package.preload["telescope"]
+  local original_loaded = package.loaded["telescope"]
+
+  package.preload["telescope"] = function()
+    loaded = loaded + 1
+    return {}
+  end
+  package.loaded["telescope"] = nil
+
+  local ok, err = pcall(with_picker_stubs, {
+    telescope = {
+      select = function()
+        invoked = invoked + 1
+        return "telescope"
+      end,
+    },
+    default = {
+      select = function()
+        return "default"
+      end,
+    },
+  }, function()
+    api.get_plugin_info = function()
+      return nil
+    end
+
+    picker.get "telescope.nvim"
+    eq(0, loaded)
+
+    eq("telescope", picker.pick {})
+    eq(1, loaded)
+    eq(1, invoked)
+  end)
+
+  package.preload["telescope"] = original_preload
+  package.loaded["telescope"] = original_loaded
+
+  if not ok then
+    error(err, 0)
+  end
+end
+
+T["get auto-detects lazy-loaded picker when not yet on runtimepath"] = function()
+  local loaded = 0
+  local invoked = 0
+  local original_preload = package.preload["telescope"]
+  local original_loaded = package.loaded["telescope"]
+
+  package.preload["telescope"] = function()
+    loaded = loaded + 1
+    return {}
+  end
+  package.loaded["telescope"] = nil
+
+  local ok, err = pcall(with_picker_stubs, {
+    telescope = {
+      select = function()
+        invoked = invoked + 1
+        return "telescope"
+      end,
+    },
+    default = {
+      select = function()
+        return "default"
+      end,
+    },
+  }, function()
+    api.get_plugin_info = function()
+      return nil
+    end
+
+    picker.get()
+    eq(0, loaded)
+
+    eq("telescope", picker.select {})
+    eq(1, loaded)
+    eq(1, invoked)
+  end)
+
+  package.preload["telescope"] = original_preload
+  package.loaded["telescope"] = original_loaded
+
+  if not ok then
+    error(err, 0)
+  end
+end
+
 T["pick_note raises a removal error"] = function()
   has_error(function()
     picker.pick_note()

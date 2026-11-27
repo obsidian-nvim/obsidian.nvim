@@ -20,24 +20,35 @@ local M = {
 local state = {}
 M.state = state
 
+---@class obsidian.picker.PluginSpec
+---@field plugins string[]
+---@field modules string[]
+
+---@type table<string, obsidian.picker.PluginSpec>
 local picker_plugins = {
-  [string.lower(PickerName.telescope)] = { "telescope.nvim" },
-  [string.lower(PickerName.fzf_lua)] = { "fzf-lua" },
-  [string.lower(PickerName.mini)] = { "mini.nvim", "mini.pick" },
-  [string.lower(PickerName.snacks)] = { "snacks.nvim" },
-  ["snacks.pick"] = { "snacks.nvim" },
+  [string.lower(PickerName.telescope)] = { plugins = { "telescope.nvim" }, modules = { "telescope" } },
+  [string.lower(PickerName.fzf_lua)] = { plugins = { "fzf-lua" }, modules = { "fzf-lua" } },
+  [string.lower(PickerName.mini)] = { plugins = { "mini.nvim", "mini.pick" }, modules = { "mini.pick" } },
+  [string.lower(PickerName.snacks)] = { plugins = { "snacks.nvim" }, modules = { "snacks.picker" } },
+  ["snacks.pick"] = { plugins = { "snacks.nvim" }, modules = { "snacks.picker" } },
 }
 
 ---@param picker_name string
 ---@return boolean
 local function picker_available(picker_name)
-  local plugins = picker_plugins[string.lower(picker_name)]
-  if plugins == nil then
+  local spec = picker_plugins[string.lower(picker_name)]
+  if spec == nil then
     return false
   end
 
-  for _, plugin in ipairs(plugins) do
+  for _, plugin in ipairs(spec.plugins) do
     if api.get_plugin_info(plugin) ~= nil then
+      return true
+    end
+  end
+
+  for _, modname in ipairs(spec.modules) do
+    if pcall(require, modname) then
       return true
     end
   end
