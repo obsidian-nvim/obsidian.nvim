@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Avoid argument-limit and stack-overflow failures when searching properties across large vaults with caching disabled.
+
 - Preserve the first line and full line length in linewise visual mode (`V`) selections such as `extract_note` and handle empty lines safely.
 - Write note content without Windows text-mode newline conversion, preventing stray carriage returns in open buffers after saving.
 - Preserve percent-encoded query values when following URI links instead of decoding query delimiters before dispatch.
