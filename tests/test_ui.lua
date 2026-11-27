@@ -79,6 +79,45 @@ T["update"]["should not add tag extmarks inside inline code"] = function()
   eq(11, tag_marks[1][3])
 end
 
+T["update"]["conceals attachment embed sizes without hiding filenames or note aliases"] = function()
+  local bufnr = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_name(bufnr, vim.fn.tempname() .. ".md")
+  local lines = {
+    "![[image.jpg|100]]",
+    "![[image.jpg|100x145]]",
+    "![[image.jpg|60%]]",
+    "![[image.jpg]]",
+    "![[note|alias]]",
+    "![[image.jpg|caption]]",
+    "[[image.jpg|alias]]",
+    "![[图片.jpg|100]]",
+  }
+  vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
+  Obsidian = { opts = { ui = vim.deepcopy(require("obsidian.config.default").ui) } }
+  ui.update(bufnr)
+
+  local ns_id = vim.api.nvim_create_namespace "ObsidianUI"
+  local expected =
+    { "!image.jpg", "!image.jpg", "!image.jpg", "!image.jpg", "!alias", "!caption", "alias", "!图片.jpg" }
+  for row, line in ipairs(lines) do
+    local concealed = {}
+    for _, mark in
+      ipairs(vim.api.nvim_buf_get_extmarks(bufnr, ns_id, { row - 1, 0 }, { row - 1, -1 }, { details = true }))
+    do
+      if mark[4].conceal == "" then
+        concealed[#concealed + 1] = { start_col = mark[3], end_col = mark[4].end_col }
+      end
+    end
+    table.sort(concealed, function(a, b)
+      return a.start_col > b.start_col
+    end)
+    for _, range in ipairs(concealed) do
+      line = line:sub(1, range.start_col) .. line:sub(range.end_col + 1)
+    end
+    eq(expected[row], line)
+  end
+end
+
 T["update"]["decorates links in frontmatter"] = function()
   local bufnr = vim.api.nvim_create_buf(false, true)
   vim.api.nvim_buf_set_name(bufnr, vim.fn.tempname() .. ".md")
