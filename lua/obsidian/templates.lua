@@ -49,31 +49,53 @@ end
 M.substitute_template_variables = function(text, ctx)
   local methods = vim.deepcopy(Obsidian.opts.templates.substitutions or {})
 
-  -- Replace known variables.
-  for key, subst in pairs(methods) do
-    local key_pattern = vim.pesc(key)
-    if type(subst) == "string" then
-      text = string.gsub(text, "{{" .. key_pattern .. "}}", subst)
+  local result = {}
+  local pos = 1
+  while pos <= #text do
+    local open = text:find("{{", pos, true)
+    local escaped_open = text:find("\\{{", pos, true)
+    local escaped_close = text:find("\\}}", pos, true)
+    local escaped = escaped_open and (not escaped_close or escaped_open < escaped_close) and escaped_open
+      or escaped_close
+    if escaped and (not open or escaped <= open) then
+      result[#result + 1] = text:sub(pos, escaped - 1)
+      result[#result + 1] = text:sub(escaped + 1, escaped + 2)
+      pos = escaped + 3
+    elseif open then
+      local close = text:find("}}", open + 2, true)
+      if not close or close == open + 2 then
+        result[#result + 1] = text:sub(pos, open + 1)
+        pos = open + 2
+      else
+        result[#result + 1] = text:sub(pos, open - 1)
+        local raw = text:sub(open, close + 1)
+        local key = vim.trim(text:sub(open + 2, close - 1))
+        local subst = methods[key]
+        local suffix
+        if subst == nil then
+          local name, arg = key:match "^([^:]+):(.*)$"
+          if name and type(methods[name]) == "function" then
+            subst = methods[name]
+            suffix = vim.trim(arg or "")
+          end
+        end
+        local value
+        if type(subst) == "function" then
+          value = subst(ctx, suffix)
+        elseif type(subst) == "string" then
+          value = subst
+        else
+          value = api.input(string.format("Enter value for '%s' (<cr> to skip): ", key))
+        end
+        result[#result + 1] = value and #value > 0 and value or raw
+        pos = close + 2
+      end
     else
-      text = string.gsub(text, "{{" .. key_pattern .. ":([^}]*)}}", function(suffix)
-        return subst(ctx, vim.trim(suffix))
-      end)
-      text = string.gsub(text, "{{" .. key_pattern .. "}}", function()
-        return subst(ctx)
-      end)
+      result[#result + 1] = text:sub(pos)
+      break
     end
   end
-
-  -- Find unknown variables and prompt for them.
-  for m_start, m_end in util.gfind(text, "{{[^}]+}}") do
-    local key = vim.trim(string.sub(text, m_start + 2, m_end - 2))
-    local value = api.input(string.format("Enter value for '%s' (<cr> to skip): ", key))
-    if value and string.len(value) > 0 then
-      text = string.sub(text, 1, m_start - 1) .. value .. string.sub(text, m_end + 1)
-    end
-  end
-
-  return text
+  return table.concat(result)
 end
 
 --- Clone template to a new note.

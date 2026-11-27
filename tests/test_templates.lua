@@ -21,6 +21,65 @@ end
 
 T["substitute_template_variables()"] = new_set()
 
+T["substitute_template_variables()"]["should replace multiple unknown variables using their original positions"] = function()
+  local original_input = api.input
+  local prompts = {}
+  api.input = function(prompt)
+    prompts[#prompts + 1] = prompt
+    return ({ first = "Alice", second = "Bob" })[prompt:match "'([^']+)' "]
+  end
+  local ok, result = pcall(M.substitute_template_variables, "{{first}} and {{second}}", tmp_template_context())
+  api.input = original_input
+  if not ok then
+    error(result)
+  end
+  eq("Alice and Bob", result)
+  eq(2, #prompts)
+end
+
+T["substitute_template_variables()"]["should not reprocess replacement values"] = function()
+  local original_input = api.input
+  local prompts = 0
+  api.input = function()
+    prompts = prompts + 1
+    return "100% {{literal}}"
+  end
+  local ok, result = pcall(M.substitute_template_variables, "{{unknown}} {{title}}", tmp_template_context())
+  api.input = original_input
+  if not ok then
+    error(result)
+  end
+  eq("100% {{literal}} FOO", result)
+  eq(1, prompts)
+end
+
+T["substitute_template_variables()"]["should preserve skipped variables next to replacements"] = function()
+  local original_input = api.input
+  api.input = function(prompt)
+    return prompt:find("second", 1, true) and "Bob" or nil
+  end
+  local ok, result = pcall(M.substitute_template_variables, "{{first}} {{second}}", tmp_template_context())
+  api.input = original_input
+  if not ok then
+    error(result)
+  end
+  eq("{{first}} Bob", result)
+end
+
+T["substitute_template_variables()"]["should allow escaped literal braces without prompting"] = function()
+  local original_input = api.input
+  api.input = function()
+    error "escaped braces must not prompt"
+  end
+  local ok, result =
+    pcall(M.substitute_template_variables, [[\{{date\}} \{{unknown\}} \{{ \}} {{}}]], tmp_template_context())
+  api.input = original_input
+  if not ok then
+    error(result)
+  end
+  eq("{{date}} {{unknown}} {{ }} {{}}", result)
+end
+
 T["substitute_template_variables()"]["should substitute built-in variables"] = function()
   local text = "today is {{date}} and the title of the note is {{title}}"
   eq(

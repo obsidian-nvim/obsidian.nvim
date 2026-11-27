@@ -109,6 +109,11 @@ TODO: this is a planned feature that has not been realized yet. See [Discussions
 
 ## Substitutions
 
+To write literal braces in a template, escape them with a backslash: `\{{date\}}`
+becomes `{{date}}` without substituting or prompting. Unknown variables are
+prompted for separately, even when several occur on the same line; skipping a
+prompt leaves that variable unchanged.
+
 You can also define custom template substitutions with the configuration field `templates.substitutions`. For example, to automatically substitute the template variable `{{yesterday}}` when inserting a template, you could add this to your config:
 
 ```lua
