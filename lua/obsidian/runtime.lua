@@ -1,8 +1,9 @@
 local M = {}
 
-local source = debug.getinfo(1, "S").source
+local debug_info = debug.getinfo(1, "S")
+local source = debug_info and debug_info.source or nil
 local plugin_dir
-if source:sub(1, 1) == "@" then
+if source and source:sub(1, 1) == "@" then
   local dir = vim.fs.dirname
   local path = vim.fs.normalize(vim.fs.abspath(source:sub(2)), { expand_env = false })
   plugin_dir = dir(dir(dir(path)))
