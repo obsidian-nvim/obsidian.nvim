@@ -54,20 +54,6 @@ M._workspace_opts = function(workspace)
   return config.normalize(overrides, Obsidian._opts)
 end
 
---- TODO: will not work if plugin is managed by nix
----
----@return obsidian.Path|?
-M.docs_dir = function()
-  local info = M.get_plugin_info "obsidian.nvim"
-  if not info then
-    return
-  end
-
-  ---@type obsidian.Path
-  local dir = Path.new(info.path) / "docs"
-  return dir
-end
-
 --- Get the templates folder.
 ---
 ---@param workspace obsidian.Workspace?
@@ -833,42 +819,6 @@ M.get_open_strategy = function(opt)
   end
 end
 
-----------------------------
---- Integration helpers ----
-----------------------------
-
---- Get the path to where a plugin is installed.
----
----@param name string
----@return string|?
-local get_src_root = function(name)
-  for _, path in ipairs(vim.api.nvim_list_runtime_paths()) do
-    if vim.endswith(path, name) then
-      return path
-    end
-  end
-end
-
---- Get info about a plugin.
----
----@param name string
----
----@return { commit: string|?, path: string }|?
-M.get_plugin_info = function(name)
-  local src_root = get_src_root(name)
-  if not src_root then
-    return
-  end
-  local out = { path = src_root }
-  local obj = vim.system({ "git", "rev-parse", "HEAD" }, { cwd = src_root }):wait(1000)
-  if obj.code == 0 then
-    out.commit = vim.trim(obj.stdout or "")
-  else
-    out.commit = "unknown"
-  end
-  return out
-end
-
 ------------------
 --- UI helpers ---
 ------------------
@@ -915,46 +865,6 @@ M.confirm = function(prompt, choices)
     return nil
   end
   return user_choice
-end
-
----@enum obsidian.api.OSType
-M.OSType = {
-  Linux = "Linux",
-  Wsl = "Wsl",
-  Windows = "Windows",
-  Darwin = "Darwin",
-  FreeBSD = "FreeBSD",
-}
-
----@type obsidian.api.OSType?
-M._current_os = nil
-
----Get the running operating system.
----Reference https://vi.stackexchange.com/a/2577/33116
----@return obsidian.api.OSType
-M.get_os = function()
-  if M._current_os ~= nil then
-    ---@diagnostic disable-next-line: return-type-mismatch
-    return M._current_os
-  end
-
-  ---@type obsidian.api.OSType
-  local this_os
-  if vim.fn.has "win32" == 1 then
-    this_os = M.OSType.Windows
-  else
-    local sysname = vim.uv.os_uname().sysname
-    local release = vim.uv.os_uname().release:lower()
-    if sysname:lower() == "linux" and string.find(release, "microsoft") then
-      this_os = M.OSType.Wsl
-    else
-      ---@cast sysname obsidian.api.OSType
-      this_os = sysname
-    end
-  end
-
-  M._current_os = this_os
-  return this_os
 end
 
 --- Get the icon associated with a path.

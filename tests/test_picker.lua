@@ -21,16 +21,22 @@ local Path = require "obsidian.path"
 local helpers = require "tests.helpers"
 
 local function with_picker_stubs(stubs, fn)
-  local original_get_plugin_info = api.get_plugin_info
+  local original_module = package.loaded["telescope"]
+  local original_preload = package.preload["telescope"]
   local original_default = package.loaded["obsidian.picker.default"]
   local original_telescope = package.loaded["obsidian.picker.telescope"]
 
+  if not stubs.keep_module then
+    package.loaded["telescope"] = nil
+    package.preload["telescope"] = stubs.module
+  end
   package.loaded["obsidian.picker.default"] = stubs.default
   package.loaded["obsidian.picker.telescope"] = stubs.telescope
 
   local ok, err = pcall(fn)
 
-  api.get_plugin_info = original_get_plugin_info
+  package.loaded["telescope"] = original_module
+  package.preload["telescope"] = original_preload
   package.loaded["obsidian.picker.default"] = original_default
   package.loaded["obsidian.picker.telescope"] = original_telescope
   picker.get(false)
@@ -51,13 +57,11 @@ T["get defers configured picker availability check until first picker call"] = f
         return "default"
       end,
     },
-  }, function()
-    api.get_plugin_info = function(name)
+    module = function()
       calls = calls + 1
-      eq("telescope.nvim", name)
-      return nil
-    end
-
+      error "not available"
+    end,
+  }, function()
     picker.get "telescope.nvim"
     eq(0, calls)
 
@@ -82,13 +86,11 @@ T["get lazy-resolves select when it is the first picker call"] = function()
         return "default"
       end,
     },
-  }, function()
-    api.get_plugin_info = function(name)
+    module = function()
       calls = calls + 1
-      eq("telescope.nvim", name)
-      return nil
-    end
-
+      error "not available"
+    end,
+  }, function()
     picker.get "telescope.nvim"
     eq(0, calls)
 
@@ -110,15 +112,14 @@ T["get uses configured picker if it becomes available before first picker call"]
         return "telescope"
       end,
     },
-  }, function()
-    api.get_plugin_info = function(name)
+    module = function()
       calls = calls + 1
-      eq("telescope.nvim", name)
       if available then
-        return { path = "/tmp/telescope.nvim" }
+        return {}
       end
-    end
-
+      error "not available"
+    end,
+  }, function()
     picker.get "telescope.nvim"
     eq(0, calls)
 
@@ -158,11 +159,8 @@ T["get loads lazy-loaded configured picker when not yet on runtimepath"] = funct
         return "default"
       end,
     },
+    keep_module = true,
   }, function()
-    api.get_plugin_info = function()
-      return nil
-    end
-
     picker.get "telescope.nvim"
     eq(0, loaded)
 
@@ -203,11 +201,8 @@ T["get auto-detects lazy-loaded picker when not yet on runtimepath"] = function(
         return "default"
       end,
     },
+    keep_module = true,
   }, function()
-    api.get_plugin_info = function()
-      return nil
-    end
-
     picker.get()
     eq(0, loaded)
 
@@ -415,10 +410,10 @@ T["find_files presents filesystem paths without a shell command"] = function()
         on_choice(values)
       end,
     },
+    module = function()
+      return {}
+    end,
   }, function()
-    api.get_plugin_info = function()
-      return { path = "/tmp/telescope.nvim" }
-    end
     picker.get "telescope.nvim"
     picker.find_files {
       dir = dir,

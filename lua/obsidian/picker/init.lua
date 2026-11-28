@@ -20,40 +20,24 @@ local M = {
 local state = {}
 M.state = state
 
----@class obsidian.picker.PluginSpec
----@field plugins string[]
----@field modules string[]
-
----@type table<string, obsidian.picker.PluginSpec>
-local picker_plugins = {
-  [string.lower(PickerName.telescope)] = { plugins = { "telescope.nvim" }, modules = { "telescope" } },
-  [string.lower(PickerName.fzf_lua)] = { plugins = { "fzf-lua" }, modules = { "fzf-lua" } },
-  [string.lower(PickerName.mini)] = { plugins = { "mini.nvim", "mini.pick" }, modules = { "mini.pick" } },
-  [string.lower(PickerName.snacks)] = { plugins = { "snacks.nvim" }, modules = { "snacks.picker" } },
-  ["snacks.pick"] = { plugins = { "snacks.nvim" }, modules = { "snacks.picker" } },
+local picker_modules = {
+  [string.lower(PickerName.telescope)] = "telescope",
+  [string.lower(PickerName.fzf_lua)] = "fzf-lua",
+  [string.lower(PickerName.mini)] = "mini.pick",
+  [string.lower(PickerName.snacks)] = "snacks.picker",
 }
+
+local picker_order = { PickerName.telescope, PickerName.fzf_lua, PickerName.mini, PickerName.snacks }
 
 ---@param picker_name string
 ---@return boolean
 local function picker_available(picker_name)
-  local spec = picker_plugins[string.lower(picker_name)]
-  if spec == nil then
+  local module = picker_modules[string.lower(picker_name)]
+  if not module then
     return false
   end
-
-  for _, plugin in ipairs(spec.plugins) do
-    if api.get_plugin_info(plugin) ~= nil then
-      return true
-    end
-  end
-
-  for _, modname in ipairs(spec.modules) do
-    if pcall(require, modname) then
-      return true
-    end
-  end
-
-  return false
+  local ok = pcall(require, module)
+  return ok
 end
 
 -------------------------------------------------------------------
@@ -388,8 +372,7 @@ local function picker_module(picker_name)
     return "obsidian.picker.mini"
   elseif picker_name == string.lower(PickerName.fzf_lua) then
     return "obsidian.picker.fzf"
-    -- or statement added for backwards compatibility
-  elseif picker_name == string.lower(PickerName.snacks) or picker_name == "snacks.pick" then
+  elseif picker_name == string.lower(PickerName.snacks) then
     return "obsidian.picker.snacks"
   else
     return "obsidian.picker.default"
@@ -410,7 +393,7 @@ local function resolve_picker()
       return
     end
   else
-    for _, name in ipairs { PickerName.telescope, PickerName.fzf_lua, PickerName.mini, PickerName.snacks } do
+    for _, name in ipairs(picker_order) do
       if picker_available(name) then
         picker_name = string.lower(name)
         break
@@ -439,7 +422,7 @@ end
 
 --- Get the default Picker.
 ---
----@param picker_name obsidian.config.Picker|false|?
+---@param picker_name obsidian.config.Picker|"snacks.pick"|false|?
 M.get = function(picker_name)
   state.picker_resolved = false
   state.picker_name = nil
@@ -452,7 +435,8 @@ M.get = function(picker_name)
   end
 
   if picker_name then
-    state.picker_name = string.lower(picker_name)
+    local name = string.lower(picker_name)
+    state.picker_name = name == "snacks.pick" and PickerName.snacks or name
   end
 
   M.find_files = find_files

@@ -1,5 +1,6 @@
 local api = require "obsidian.api"
 local log = require "obsidian.log"
+local runtime = require "obsidian.runtime"
 
 ---@class obsidian.sync.Client
 ---@field cmd string?  -- path to CLI, if available
@@ -14,13 +15,7 @@ local M = {}
 ---@field hash string
 ---@field name string
 
-local function get_plugin_root()
-  for _, path in ipairs(vim.api.nvim_list_runtime_paths()) do
-    if vim.endswith(path, "obsidian.nvim") then
-      return path
-    end
-  end
-end
+local get_plugin_root = runtime.get_plugin_dir
 
 ---@return string?
 local function get_cmd()
@@ -83,7 +78,8 @@ local cmd, cli
 ---@return string
 function M.config_home()
   local home = vim.uv.os_homedir() or tostring(vim.fn.expand "$HOME")
-  local sysname = (vim.uv.os_uname().sysname or ""):lower()
+  local uname = vim.uv.os_uname()
+  local sysname = (uname and uname.sysname or ""):lower()
   if sysname == "linux" then
     local config_home = vim.env.XDG_CONFIG_HOME
     if not config_home or config_home == "" then

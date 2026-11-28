@@ -1,5 +1,5 @@
 local Path = require "obsidian.path"
-local api = require "obsidian.api"
+local runtime = require "obsidian.runtime"
 
 local new_set, eq, has_error = MiniTest.new_set, MiniTest.expect.equality, MiniTest.expect.error
 
@@ -23,7 +23,7 @@ T["new"]["should return same object when arg is already a path"] = function()
   eq(path, Path.new(path))
 end
 
-if api.get_os() == api.OSType.Windows then
+if runtime.get_os() == runtime.OSType.Windows then
   T["new"]["should normalize lowercase c drives on windows correctly"] = function()
     local path = Path.new "c:/foo/bar"
     eq(path.filename, "C:/foo/bar")
@@ -122,7 +122,7 @@ T["is_absolute"] = new_set()
 
 T["is_absolute"]["should work for windows or unix paths"] = function()
   assert(Path.new("/foo/"):is_absolute())
-  if api.get_os() == api.OSType.Windows then
+  if runtime.get_os() == runtime.OSType.Windows then
     assert(Path.new("C:/foo/"):is_absolute())
     assert(Path.new("C:\\foo\\"):is_absolute())
   end

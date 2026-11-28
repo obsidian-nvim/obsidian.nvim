@@ -193,9 +193,8 @@ end
 ---@param _ string
 ---@param cmdline string
 ---@return string[]
-M.help_complete = function(_, cmdline)
-  local api = require "obsidian.api"
-  local docs_dir = api.docs_dir()
+local help_complete = function(_, cmdline)
+  local docs_dir = require("obsidian.interfaces.help").get_dir()
   if not docs_dir then
     return {}
   end
@@ -217,7 +216,7 @@ end
 ---@param _ string
 ---@param cmdline string
 ---@return string[]
-M.note_complete = function(_, cmdline)
+local note_complete = function(_, cmdline)
   local search = require "obsidian.search"
   local completions = {}
 
@@ -263,7 +262,7 @@ M.register("dailies", { nargs = "*" })
 
 M.register("new", { nargs = "*" })
 
-M.register("open", { nargs = "*", complete = M.note_complete })
+M.register("open", { nargs = "*", complete = note_complete })
 
 M.register("tags", { nargs = "*" })
 
@@ -292,7 +291,7 @@ M.register("rebuild_cache", { nargs = 0 })
 
 M.register("workspace", { nargs = "?" })
 
-M.register("help", { nargs = "?", complete = M.help_complete })
+M.register("help", { nargs = "?", complete = help_complete })
 
 M.register("helpgrep", { nargs = "?" })
 
@@ -310,7 +309,7 @@ M.register("template", { nargs = "?", note_action = true })
 
 M.register("link_new", { nargs = "?", note_action = true })
 
-M.register("link", { nargs = "?", complete = M.note_complete, note_action = true })
+M.register("link", { nargs = "?", complete = note_complete, note_action = true })
 
 M.register("links", { nargs = 0, note_action = true })
 

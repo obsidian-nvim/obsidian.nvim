@@ -59,6 +59,7 @@ config.normalize = function(opts, defaults)
   opts.daily_notes = tbl_override(defaults.daily_notes, opts.daily_notes)
   opts.templates = tbl_override(defaults.templates, opts.templates)
   opts.ui = tbl_override(defaults.ui, opts.ui)
+  opts.ui.enable = opts.ui.enabled -- Keep the legacy field in sync for integrations.
   opts.attachments = tbl_override(defaults.attachments, opts.attachments)
   opts.statusline = tbl_override(defaults.statusline, opts.statusline)
   opts.footer = tbl_override(defaults.footer, opts.footer)

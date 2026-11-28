@@ -620,7 +620,7 @@ end
 ---@param bufnr integer|?
 ---@return boolean
 local function should_update(ui_opts, bufnr)
-  if ui_opts.enable == false then
+  if ui_opts.enabled == false then
     return false
   end
 
@@ -673,7 +673,7 @@ end
 ---@param workspace obsidian.Workspace
 ---@param ui_opts obsidian.config.UIOpts
 M.setup = function(workspace, ui_opts)
-  if ui_opts.enable == false then
+  if ui_opts.enabled == false then
     return
   end
 
@@ -695,7 +695,7 @@ M.setup = function(workspace, ui_opts)
             .. "but you have 'conceallevel' set to '%s'.\n"
             .. "See https://github.com/epwalsh/obsidian.nvim/issues/286 for more details.\n"
             .. "If you don't want Obsidian's additional UI features, you can disable them and suppress "
-            .. "this warning by setting 'ui.enable = false' in your Obsidian nvim config.",
+            .. "this warning by setting 'ui.enabled = false' in your Obsidian nvim config.",
           conceallevel
         )
       end

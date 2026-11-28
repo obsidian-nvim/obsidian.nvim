@@ -3,6 +3,7 @@ local VERSION = require "obsidian.version"
 local api = require "obsidian.api"
 local config = require "obsidian.config"
 local sync_client = require "obsidian.sync.client"
+local runtime = require "obsidian.runtime"
 
 local error = vim.health.error
 local info = vim.health.info
@@ -36,22 +37,6 @@ local function start(name)
   vim.health.start(string.format("[%s]", name))
 end
 
----@param plugin string
----@param optional boolean
----@return boolean
-local function has_plugin(plugin, optional)
-  local plugin_info = api.get_plugin_info(plugin)
-  if plugin_info then
-    ok_f("%s: %s", plugin, plugin_info.commit or "unknown")
-    return true
-  else
-    if not optional then
-      error(" " .. plugin .. " not installed")
-    end
-    return false
-  end
-end
-
 ---@alias obsidian.DependencyInfo obsidian.health.DependencyInfo
 ---@class obsidian.health.DependencyInfo
 ---@field path string
@@ -78,19 +63,6 @@ local function has_executable(name, optional)
       error(string.format("%s not found", name))
     end
     return false
-  end
-end
-
----@param plugins string[]
-local function has_one_of(plugins)
-  local found
-  for _, name in ipairs(plugins) do
-    if has_plugin(name, true) then
-      found = true
-    end
-  end
-  if not found then
-    warn("It is recommended to install at least one of " .. vim.inspect(plugins))
   end
 end
 
@@ -139,11 +111,28 @@ local function neovim(minimum, recommended)
   end
 end
 
+--- Get info about obsidian.nvim.
+---@return { commit: string, path: string }?
+local commit = function()
+  local src_root = runtime.get_plugin_dir()
+  if not src_root then
+    return
+  end
+  local out = { path = src_root }
+  local obj = vim.system({ "git", "rev-parse", "HEAD" }, { cwd = src_root }):wait(1000)
+  if obj.code == 0 then
+    out.commit = vim.trim(obj.stdout or "")
+  else
+    out.commit = "unknown"
+  end
+  return out
+end
+
 function M.check()
-  local os = api.get_os()
+  local os = runtime.get_os()
   neovim("0.11", "0.12")
   start "Version"
-  local plugin_info = api.get_plugin_info "obsidian.nvim"
+  local plugin_info = commit()
   ok_f("obsidian.nvim v%s (%s)", VERSION, plugin_info and plugin_info.commit or "unknown commit")
 
   start "Environment"
@@ -173,13 +162,22 @@ function M.check()
 
   start "Pickers"
 
-  has_one_of {
-    "telescope.nvim",
-    "fzf-lua",
-    "mini.nvim",
-    "mini.pick",
-    "snacks.nvim",
+  local pickers = {
+    { "telescope.nvim", "telescope" },
+    { "fzf-lua", "fzf-lua" },
+    { "mini.nvim / mini.pick", "mini.pick" },
+    { "snacks.nvim", "snacks.picker" },
   }
+  local found = false
+  for _, picker in ipairs(pickers) do
+    if pcall(require, picker[2]) then
+      ok(picker[1])
+      found = true
+    end
+  end
+  if not found then
+    warn "No external picker detected; the native picker is available."
+  end
 
   start "Dependencies"
   has_executable("rg", false)
@@ -195,7 +193,7 @@ function M.check()
   })
 
   start "Image paste"
-  if os == api.OSType.Linux or os == api.OSType.FreeBSD then
+  if os == runtime.OSType.Linux or os == runtime.OSType.FreeBSD then
     has_one_of_executable({
       "xclip",
       "wl-paste",
@@ -203,7 +201,7 @@ function M.check()
       feature = ":Obsidian paste_img",
       hint = "Use `xclip` on X11 or `wl-clipboard` (provides `wl-paste`) on Wayland.",
     })
-  elseif os == api.OSType.Darwin then
+  elseif os == runtime.OSType.Darwin then
     has_one_of_executable({ "pngpaste" }, {
       feature = ":Obsidian paste_img",
       hint = "Install `pngpaste` to paste clipboard images.",
@@ -212,13 +210,13 @@ function M.check()
       feature = ":Obsidian paste_img",
       hint = "Install ImageMagick to correct pasted image gamma.",
     })
-  elseif os == api.OSType.Windows or os == api.OSType.Wsl then
+  elseif os == runtime.OSType.Windows or os == runtime.OSType.Wsl then
     ok_f ":Obsidian paste_img uses PowerShell clipboard support"
   else
     warn_f(":Obsidian paste_img is not implemented for %s", os)
   end
 
-  if os == api.OSType.Wsl then
+  if os == runtime.OSType.Wsl then
     start "Open"
     has_one_of_executable({ "wsl-open" }, {
       feature = ":Obsidian open on WSL",
