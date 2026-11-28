@@ -5,18 +5,17 @@ local picker = require "obsidian.picker"
 
 local M = {}
 
---- TODO: will not work if plugin is managed by nix
----
 ---@return obsidian.Path|?
 M.get_dir = function()
-  local info = runtime.get_plugin_info "obsidian.nvim"
-  if not info then
+  local root = runtime.get_plugin_dir()
+  if not root then
     return
   end
 
-  ---@type obsidian.Path
-  local dir = Path.new(info.path) / "docs"
-  return dir
+  local dir = Path.new(root) / "docs"
+  if dir:is_dir() then
+    return dir
+  end
 end
 
 M.pick = function(query)

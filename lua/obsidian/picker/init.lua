@@ -1,6 +1,5 @@
 local picker_util = require "obsidian.picker.util"
 local api = require "obsidian.api"
-local runtime = require "obsidian.runtime"
 local icons = require "obsidian.icons"
 local log = require "obsidian.log"
 local PickerName = require("obsidian.types").Picker
@@ -21,67 +20,24 @@ local M = {
 local state = {}
 M.state = state
 
----@class obsidian.picker.PluginSpec
----@field plugin string
----@field plugin_alias? string
----@field module string
-
----@type table<string, obsidian.picker.PluginSpec>
-local picker_plugins = {
-  [string.lower(PickerName.telescope)] = { plugin = "telescope.nvim", module = "telescope" },
-  [string.lower(PickerName.fzf_lua)] = { plugin = "fzf-lua", module = "fzf-lua" },
-  [string.lower(PickerName.mini)] = { plugin = "mini.nvim", plugin_alias = "mini.pick", module = "mini.pick" },
-  [string.lower(PickerName.snacks)] = { plugin = "snacks.nvim", module = "snacks.picker" },
-  ["snacks.pick"] = { plugin = "snacks.nvim", module = "snacks.picker" },
+local picker_modules = {
+  [string.lower(PickerName.telescope)] = "telescope",
+  [string.lower(PickerName.fzf_lua)] = "fzf-lua",
+  [string.lower(PickerName.mini)] = "mini.pick",
+  [string.lower(PickerName.snacks)] = "snacks.picker",
 }
 
 local picker_order = { PickerName.telescope, PickerName.fzf_lua, PickerName.mini, PickerName.snacks }
 
----@param modname string
----@return boolean
-local function module_on_runtimepath(modname)
-  local path = "lua/" .. modname:gsub("%.", "/")
-  return #vim.api.nvim_get_runtime_file(path .. ".lua", false) > 0
-    or #vim.api.nvim_get_runtime_file(path .. "/init.lua", false) > 0
-end
-
 ---@param picker_name string
----@param load boolean
----@return obsidian.picker.PluginSpec?
-local function picker_spec(picker_name, load)
-  local spec = picker_plugins[string.lower(picker_name)]
-  if spec == nil then
-    return
+---@return boolean
+local function picker_available(picker_name)
+  local module = picker_modules[string.lower(picker_name)]
+  if not module then
+    return false
   end
-
-  if load then
-    if pcall(require, spec.module) then
-      return spec
-    end
-  elseif package.loaded[spec.module] or package.preload[spec.module] or module_on_runtimepath(spec.module) then
-    return spec
-  end
-end
-
---- Discover pickers for checkhealth without triggering their loaders.
----@return { name: string, commit: string? }[]
-function M._installed_pickers()
-  local pickers = {}
-  for _, picker_name in ipairs(picker_order) do
-    local spec = picker_spec(picker_name, false)
-    if spec then
-      local name = spec.plugin
-      local info = runtime.get_plugin_info(name)
-      if not info and spec.plugin_alias then
-        info = runtime.get_plugin_info(spec.plugin_alias)
-        if info then
-          name = spec.plugin_alias
-        end
-      end
-      pickers[#pickers + 1] = { name = name, commit = info and info.commit }
-    end
-  end
-  return pickers
+  local ok = pcall(require, module)
+  return ok
 end
 
 -------------------------------------------------------------------
@@ -416,8 +372,7 @@ local function picker_module(picker_name)
     return "obsidian.picker.mini"
   elseif picker_name == string.lower(PickerName.fzf_lua) then
     return "obsidian.picker.fzf"
-    -- or statement added for backwards compatibility
-  elseif picker_name == string.lower(PickerName.snacks) or picker_name == "snacks.pick" then
+  elseif picker_name == string.lower(PickerName.snacks) then
     return "obsidian.picker.snacks"
   else
     return "obsidian.picker.default"
@@ -431,7 +386,7 @@ local function resolve_picker()
 
   local picker_name = state.picker_name
   if picker_name then
-    if not picker_spec(picker_name, true) then
+    if not picker_available(picker_name) then
       log.warn_once('Configured picker "%s" is not available; falling back to native picker', picker_name)
       patch "obsidian.picker.default"
       state.picker_resolved = true
@@ -439,7 +394,7 @@ local function resolve_picker()
     end
   else
     for _, name in ipairs(picker_order) do
-      if picker_spec(name, true) then
+      if picker_available(name) then
         picker_name = string.lower(name)
         break
       end

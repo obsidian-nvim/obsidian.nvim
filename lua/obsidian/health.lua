@@ -3,6 +3,7 @@ local VERSION = require "obsidian.version"
 local api = require "obsidian.api"
 local config = require "obsidian.config"
 local sync_client = require "obsidian.sync.client"
+local runtime = require "obsidian.runtime"
 
 local error = vim.health.error
 local info = vim.health.info
@@ -110,12 +111,28 @@ local function neovim(minimum, recommended)
   end
 end
 
+--- Get info about obsidian.nvim.
+---@return { commit: string, path: string }?
+local commit = function()
+  local src_root = runtime.get_plugin_dir()
+  if not src_root then
+    return
+  end
+  local out = { path = src_root }
+  local obj = vim.system({ "git", "rev-parse", "HEAD" }, { cwd = src_root }):wait(1000)
+  if obj.code == 0 then
+    out.commit = vim.trim(obj.stdout or "")
+  else
+    out.commit = "unknown"
+  end
+  return out
+end
+
 function M.check()
-  local runtime = require "obsidian.runtime"
   local os = runtime.get_os()
   neovim("0.11", "0.12")
   start "Version"
-  local plugin_info = runtime.get_plugin_info "obsidian.nvim"
+  local plugin_info = commit()
   ok_f("obsidian.nvim v%s (%s)", VERSION, plugin_info and plugin_info.commit or "unknown commit")
 
   start "Environment"
@@ -145,13 +162,21 @@ function M.check()
 
   start "Pickers"
 
-  local pickers = require("obsidian.picker")._installed_pickers()
-  if #pickers == 0 then
-    warn "No external picker detected; the native picker is available."
-  else
-    for _, picker in ipairs(pickers) do
-      ok_f("%s: %s", picker.name, picker.commit or "unknown")
+  local pickers = {
+    { "telescope.nvim", "telescope" },
+    { "fzf-lua", "fzf-lua" },
+    { "mini.nvim / mini.pick", "mini.pick" },
+    { "snacks.nvim", "snacks.picker" },
+  }
+  local found = false
+  for _, picker in ipairs(pickers) do
+    if pcall(require, picker[2]) then
+      ok(picker[1])
+      found = true
     end
+  end
+  if not found then
+    warn "No external picker detected; the native picker is available."
   end
 
   start "Dependencies"

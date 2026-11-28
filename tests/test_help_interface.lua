@@ -12,15 +12,14 @@ T["help uses the plugin docs directory for pick and grep"] = function()
   docs:mkdir { parents = true }
   vim.fn.writefile({ "# Intro" }, tostring(docs / "Intro.md"))
 
-  local original_info = runtime.get_plugin_info
+  local original_dir = runtime.get_plugin_dir
   local original_find = picker.find_notes
   local original_grep = picker.grep_notes
   local original_cmd = vim.cmd
   local found, grepped, edited
   local ok, err = pcall(function()
-    runtime.get_plugin_info = function(name)
-      eq("obsidian.nvim", name)
-      return { path = tostring(root) }
+    runtime.get_plugin_dir = function()
+      return tostring(root)
     end
     picker.find_notes = function(opts)
       found = opts
@@ -45,8 +44,11 @@ T["help uses the plugin docs directory for pick and grep"] = function()
     help.grep "keyword"
     eq(docs, grepped.dir)
     eq("keyword", grepped.query)
+
+    vim.fn.delete(tostring(docs), "rf")
+    eq(nil, help.get_dir())
   end)
-  runtime.get_plugin_info = original_info
+  runtime.get_plugin_dir = original_dir
   picker.find_notes = original_find
   picker.grep_notes = original_grep
   vim.cmd = original_cmd

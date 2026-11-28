@@ -68,6 +68,52 @@ T["setup"]["should error for no valid workspace"] = function()
   end
 end
 
+T["set"] = new_set()
+
+T["set"]["UI depends on its setting, not renderer availability"] = function()
+  local root = Path.new(vim.fn.tempname())
+  local vault = root / "vault"
+  vault:mkdir { parents = true }
+  local module_dir = root / "lua"
+  module_dir:mkdir()
+  vim.fn.writefile({ "error('renderer should not load')" }, tostring(module_dir / "markview.lua"))
+
+  local original_rtp = vim.o.runtimepath
+  local original_state = Obsidian
+  local ui = require "obsidian.ui"
+  local original_setup = ui.setup
+  local calls = 0
+  vim.opt.rtp:prepend(tostring(root))
+  ui.setup = function()
+    calls = calls + 1
+  end
+
+  local ok, err = pcall(function()
+    Obsidian = {
+      _opts = require("obsidian.config").normalize { legacy_commands = false },
+      workspaces = {},
+    }
+    local ws = workspace.new { path = vault, name = "ui-test" }
+    assert(ws, "test workspace missing")
+
+    workspace.set(ws)
+    eq(1, calls)
+
+    ws.overrides = { ui = { enabled = false } }
+    workspace.set(ws)
+    eq(1, calls)
+
+    ws.overrides = { ui = { enable = false } }
+    workspace.set(ws)
+    eq(1, calls)
+  end)
+  ui.setup = original_setup
+  Obsidian = original_state
+  vim.o.runtimepath = original_rtp
+  vim.fn.delete(tostring(root), "rf")
+  assert(ok, err)
+end
+
 T["find"] = new_set()
 
 T["find"]["find and resolve workspace based on dirs"] = function()

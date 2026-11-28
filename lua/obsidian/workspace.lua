@@ -2,7 +2,6 @@ local Path = require "obsidian.path"
 local util = require "obsidian.util"
 local config = require "obsidian.config"
 local log = require "obsidian.log"
-local runtime = require "obsidian.runtime"
 
 ---@class obsidian.workspace.WorkspaceSpec
 ---
@@ -173,10 +172,7 @@ Workspace.set = function(workspace)
   require("obsidian.cache").setup(options.cache)
 
   -- Setup UI add-ons.
-  local has_no_renderer = not (
-    runtime.get_plugin_info "render-markdown.nvim" or runtime.get_plugin_info "markview.nvim"
-  )
-  if has_no_renderer and (options.ui.enable or options.ui.enabled) then
+  if options.ui.enabled ~= false then
     require("obsidian.ui").setup(workspace, options.ui)
   end
 

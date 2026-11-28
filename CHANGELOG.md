@@ -26,10 +26,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Escape the alias pipe (`[[Note\|alias]]`) when a link is inserted into a table row, so the link no longer splits the cell.
 - telescope.nvim file selection actions for Obsidian entries.
 - Resolve lazy-loaded and non-standard-path picker plugins by falling back to `require()` when the plugin directory is not yet on `runtimepath`.
-- Detect pickers installed under non-standard paths in `:checkhealth obsidian` without loading them.
+- Detect loadable pickers in `:checkhealth obsidian` by requiring their modules; this may trigger lazy loading.
 
 ### Changed
 
+- Obsidian's UI no longer automatically disables itself when `render-markdown.nvim` or `markview.nvim` is detected. Set `ui.enabled = false` when using another renderer; `ui.enable` remains supported for compatibility.
 - Skip missing-link lookup when Quick Switch only shows existing files.
 - LSP command dispatch exposes only commands used by built-in code actions, completion, and inlay hints, plus registered custom handlers. Lua actions remain callable directly from Lua.
 - LSP rename on plain text and other elements no longer renames the current note; `prepareRename` answers "Nothing to rename". Use `:Obsidian rename` to rename the note of the current buffer.

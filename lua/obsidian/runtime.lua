@@ -1,35 +1,15 @@
 local M = {}
 
---- Get the path to where a plugin is installed.
----
----@param name string
----@return string|?
-local get_src_root = function(name)
-  for _, path in ipairs(vim.api.nvim_list_runtime_paths()) do
-    if vim.endswith(path, name) then
-      return path
-    end
-  end
-end
-
---- Get info about a plugin.
----
----@param name string
----
----@return { commit: string|?, path: string }|?
-M.get_plugin_info = function(name)
-  local src_root = get_src_root(name)
-  if not src_root then
+--- Get the directory containing this plugin's Lua module.
+---@return string?
+M.get_plugin_dir = function()
+  local info = debug.getinfo(1, "S")
+  local source = info and info.source
+  if not source or source:sub(1, 1) ~= "@" then
     return
   end
-  local out = { path = src_root }
-  local obj = vim.system({ "git", "rev-parse", "HEAD" }, { cwd = src_root }):wait(1000)
-  if obj.code == 0 then
-    out.commit = vim.trim(obj.stdout or "")
-  else
-    out.commit = "unknown"
-  end
-  return out
+  local dir = vim.fs.dirname
+  return dir(dir(dir(source:sub(2))))
 end
 
 ---@enum obsidian.runtime.OSType

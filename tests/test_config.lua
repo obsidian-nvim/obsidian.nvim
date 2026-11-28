@@ -17,6 +17,24 @@ T["enums"] = new_set()
 T["normalize"] = new_set()
 T["setup"] = new_set()
 
+T["normalize"]["uses ui.enabled and retains ui.enable as a compatibility alias"] = function()
+  local default_opts = normalize {}
+  eq(true, default_opts.ui.enabled)
+  eq(true, default_opts.ui.enable)
+
+  local old_opts = normalize { ui = { enable = false } }
+  eq(false, old_opts.ui.enabled)
+  eq(false, old_opts.ui.enable)
+
+  local new_opts = normalize { ui = { enabled = false } }
+  eq(false, new_opts.ui.enabled)
+  eq(false, new_opts.ui.enable)
+
+  local both = normalize { ui = { enabled = true, enable = false } }
+  eq(true, both.ui.enabled)
+  eq(true, both.ui.enable)
+end
+
 T["normalize"]["should migrate completion.preferred_link_style to link.style"] = function()
   local opts = normalize {
     completion = {

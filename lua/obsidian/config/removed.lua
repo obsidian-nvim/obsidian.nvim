@@ -15,6 +15,13 @@ return function(user_opts, defaults)
     opts.ui.tick = nil
   end
 
+  if opts.ui and opts.ui.enable ~= nil then
+    if opts.ui.enabled == nil then
+      opts.ui.enabled = opts.ui.enable
+    end
+    opts.ui.enable = nil
+  end
+
   if not opts.picker then
     opts.picker = {}
     if opts.finder then

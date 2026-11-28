@@ -44,17 +44,12 @@ return {
   ---@field template string|?
   note = {
     template = (function()
-      local root
-      for _, path in ipairs(vim.api.nvim_list_runtime_paths()) do
-        if vim.endswith(path, "obsidian.nvim") then
-          root = path
-          break
-        end
-      end
+      local root = require("obsidian.runtime").get_plugin_dir()
       if not root then
         return nil
       end
-      return vim.fs.joinpath(root, "data/default_template.md")
+      local template = vim.fs.joinpath(root, "data/default_template.md")
+      return vim.uv.fs_stat(template) and template or nil
     end)(),
   },
 
@@ -221,8 +216,8 @@ return {
 
   ---@class obsidian.config.UIOpts
   ---
-  ---@field enable boolean|?
   ---@field enabled boolean|?
+  ---@field enable boolean|? Legacy alias for enabled
   ---@field ignore_conceal_warn boolean|?
   ---@field update_debounce integer|?
   ---@field max_file_length integer|?
@@ -235,7 +230,7 @@ return {
   ---@field block_ids obsidian.config.UIStyleSpec|?
   ---@field hl_groups table<string, table>|?
   ui = {
-    enable = true,
+    enabled = true,
     ignore_conceal_warn = false,
     update_debounce = 200,
     max_file_length = 5000,

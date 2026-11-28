@@ -80,33 +80,56 @@ end
 
 T["pickers"] = new_set()
 
-T["pickers"]["recognizes a picker on a renamed runtime path without loading it"] = function()
+T["pickers"]["loads a picker on a renamed runtime path for checkhealth"] = function()
   local runtime_dir = vim.fn.tempname()
   local module_path = runtime_dir .. "/lua/snacks/picker"
   vim.fn.mkdir(module_path, "p")
-  vim.fn.writefile({ "error('health must not load this module')" }, module_path .. "/init.lua")
+  vim.fn.writefile({ "vim.g.obsidian_test_snacks_loaded = true", "return {}" }, module_path .. "/init.lua")
   local original_rtp = vim.o.runtimepath
+  local original_loaded = package.loaded["snacks.picker"]
+  package.loaded["snacks.picker"] = nil
   vim.opt.rtp:prepend(runtime_dir)
 
-  local runtime = require "obsidian.runtime"
-  local original_info = runtime.get_plugin_info
-  runtime.get_plugin_info = function()
-    return nil
-  end
   local success, reports = pcall(section_reports, nil, "Pickers")
-  runtime.get_plugin_info = original_info
+  local module_loaded = vim.g.obsidian_test_snacks_loaded
+  vim.g.obsidian_test_snacks_loaded = nil
+  package.loaded["snacks.picker"] = original_loaded
   vim.o.runtimepath = original_rtp
   vim.fn.delete(runtime_dir, "rf")
   assert(success, reports)
+  eq(true, module_loaded)
 
   local snacks_found = false
   for _, report in ipairs(reports) do
     eq(false, report.kind == "warn")
-    if report.kind == "ok" and report.message:find("snacks.nvim", 1, true) then
+    if report.kind == "ok" and report.message == "snacks.nvim" then
       snacks_found = true
     end
   end
   eq(true, snacks_found)
+end
+
+T["pickers"]["reports mini.pick without guessing its package name"] = function()
+  local original_loaded = package.loaded["mini.pick"]
+  local original_preload = package.preload["mini.pick"]
+  package.loaded["mini.pick"] = nil
+  package.preload["mini.pick"] = function()
+    return {}
+  end
+
+  local success, reports = pcall(section_reports, nil, "Pickers")
+  package.loaded["mini.pick"] = original_loaded
+  package.preload["mini.pick"] = original_preload
+  assert(success, reports)
+
+  local mini_count = 0
+  for _, report in ipairs(reports) do
+    if report.message == "mini.nvim / mini.pick" then
+      eq("ok", report.kind)
+      mini_count = mini_count + 1
+    end
+  end
+  eq(1, mini_count)
 end
 
 return T
