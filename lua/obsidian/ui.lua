@@ -2,6 +2,7 @@ local BufferDocument = require "obsidian.document"
 local Document = require "obsidian.parse.document"
 local Range = require "obsidian.range"
 local uri = require "obsidian.uri"
+local filetypes = require "obsidian.filetypes"
 local log = require "obsidian.log"
 local search = require "obsidian.search"
 local parse_refs = require "obsidian.parse.refs"
@@ -266,11 +267,13 @@ local function get_line_ref_extmarks(marks, line, lnum, ui_opts)
   local matches = {}
   for _, ref in ipairs(parse_refs.extract(line, { lexical = true })) do
     if ref.kind ~= "footnote" then
+      local size = ref.label and (ref.label:match "^%d+%%?$" or ref.label:match "^%d+x%d+$")
       matches[#matches + 1] = {
         ref.range.start_col + (ref.embed and 2 or 1),
         ref.range.end_col,
         ref.kind,
         ref.label ~= nil,
+        ref.kind == "wiki" and ref.embed and filetypes.is_attachment(ref.target) and size ~= nil,
       }
     end
   end
@@ -283,8 +286,8 @@ local function get_line_ref_extmarks(marks, line, lnum, ui_opts)
   end
 
   for _, match in ipairs(matches) do
-    local m_start, m_end, m_type, has_alias = unpack(match)
-    if m_type == "wiki" and has_alias then
+    local m_start, m_end, m_type, has_alias, has_attachment_size = unpack(match)
+    if m_type == "wiki" and has_alias and not has_attachment_size then
       -- Reference of the form [[xxx|yyy]]
       local pipe_loc = string.find(line, "|", m_start, true)
       assert(pipe_loc, "")
@@ -323,8 +326,8 @@ local function get_line_ref_extmarks(marks, line, lnum, ui_opts)
         }
       )
     elseif m_type == "wiki" then
-      -- Reference of the form [[xxx]]
-      -- Conceal the opening '[['
+      -- Conceal brackets and, for attachment embeds, the size suffix rather than the filename.
+      local pipe_loc = has_attachment_size and string.find(line, "|", m_start, true)
       marks[#marks + 1] = ExtMark.new(
         nil,
         lnum,
@@ -335,23 +338,21 @@ local function get_line_ref_extmarks(marks, line, lnum, ui_opts)
           conceal = "",
         }
       )
-      -- Highlight the ref 'xxx'
       marks[#marks + 1] = ExtMark.new(
         nil,
         lnum,
         to_int(m_start + 1),
         ExtMarkOpts.from_tbl {
           end_row = lnum,
-          end_col = to_int(m_end - 2),
+          end_col = to_int(pipe_loc and pipe_loc - 1 or m_end - 2),
           hl_group = reference_text.hl_group,
           spell = false,
         }
       )
-      -- Conceal the closing ']]'
       marks[#marks + 1] = ExtMark.new(
         nil,
         lnum,
-        to_int(m_end - 2),
+        to_int(pipe_loc and pipe_loc - 1 or m_end - 2),
         ExtMarkOpts.from_tbl {
           end_row = lnum,
           end_col = to_int(m_end),
