@@ -69,6 +69,66 @@ T["daily_note_path"]["should not add frontmatter for yesterday when disabled"] =
   eq(false, saved_note.has_frontmatter)
 end
 
+local workspace_tests, child = h.child_vault {
+  post_case = [[
+    for _, root in ipairs(vim.g.daily_test_roots or {}) do
+      vim.fn.delete(root, 'rf')
+    end
+  ]],
+}
+T["workspace"] = workspace_tests
+
+workspace_tests["commands and the picker use the explicitly selected workspace"] = function()
+  local result = child.lua [[
+    local a = tostring(Obsidian.dir)
+    local b = a .. "-other"
+    vim.g.daily_test_roots = { a, b }
+    vim.fn.mkdir(b .. "/templates", "p")
+    vim.fn.writefile({ "# Note A" }, a .. "/note.md")
+    vim.fn.writefile({ "# Template A" }, a .. "/templates/daily.md")
+    vim.fn.writefile({ "# Template B" }, b .. "/templates/daily.md")
+    require("obsidian").setup {
+      legacy_commands = false,
+      ui = { enable = false },
+      templates = { folder = "templates" },
+      daily_notes = { folder = "daily", template = "daily.md" },
+      workspaces = {
+        { name = "a", path = a },
+        { name = "b", path = b, overrides = {
+          daily_notes = { folder = "journal", date_format = "YYYY/[day-]MM-DD" },
+          frontmatter = { enabled = false },
+        } },
+      },
+    }
+    vim.cmd("edit " .. vim.fn.fnameescape(a .. "/note.md"))
+    -- Model an already-attached note, independently of filetype autocmds.
+    vim.b.obsidian_buffer = true
+    assert(require("obsidian.api").find_workspace(vim.api.nvim_buf_get_name(0)).name == "a")
+    vim.cmd("Obsidian workspace b")
+    assert(Obsidian.workspace.name == "b")
+
+    local expected = b .. "/journal/2026/day-06-25.md"
+    local daily = require "obsidian.daily"
+    local date = os.time { year = 2026, month = 6, day = 25, hour = 12 }
+    local actual = tostring(daily.daily_note_path(date))
+    local picker = require "obsidian.picker"
+    local picker_path
+    picker.select = function(entries)
+      picker_path = entries[1].filename
+    end
+    require("obsidian.resolvers").builtin.date({ offset_start = 0, offset_end = 0 }, function() end)
+    local expected_preview = b .. "/journal/" .. os.date "%Y/day-%m-%d.md"
+    vim.cmd("Obsidian today 2026-06-25")
+    return {
+      path_matches = actual == expected,
+      preview_matches = picker_path == expected_preview,
+      wrong_vault = vim.fn.filereadable(a .. "/journal/2026/day-06-25.md") == 1,
+      contents = vim.fn.filereadable(expected) == 1 and vim.fn.readfile(expected) or {},
+    }
+  ]]
+  eq({ path_matches = true, preview_matches = true, wrong_vault = false, contents = { "# Template B" } }, result)
+end
+
 T["dailies"] = h.temp_vault
 
 T["dailies"]["don't be effected by `note_id_func`"] = function()
