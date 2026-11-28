@@ -23,13 +23,14 @@ M.state = state
 
 ---@class obsidian.picker.PluginSpec
 ---@field plugin string
+---@field plugin_alias? string
 ---@field module string
 
 ---@type table<string, obsidian.picker.PluginSpec>
 local picker_plugins = {
   [string.lower(PickerName.telescope)] = { plugin = "telescope.nvim", module = "telescope" },
   [string.lower(PickerName.fzf_lua)] = { plugin = "fzf-lua", module = "fzf-lua" },
-  [string.lower(PickerName.mini)] = { plugin = "mini.nvim", module = "mini.pick" },
+  [string.lower(PickerName.mini)] = { plugin = "mini.nvim", plugin_alias = "mini.pick", module = "mini.pick" },
   [string.lower(PickerName.snacks)] = { plugin = "snacks.nvim", module = "snacks.picker" },
   ["snacks.pick"] = { plugin = "snacks.nvim", module = "snacks.picker" },
 }
@@ -69,8 +70,15 @@ function M._installed_pickers()
   for _, picker_name in ipairs(picker_order) do
     local spec = picker_spec(picker_name, false)
     if spec then
-      local info = runtime.get_plugin_info(spec.plugin)
-      pickers[#pickers + 1] = { name = spec.plugin, commit = info and info.commit }
+      local name = spec.plugin
+      local info = runtime.get_plugin_info(name)
+      if not info and spec.plugin_alias then
+        info = runtime.get_plugin_info(spec.plugin_alias)
+        if info then
+          name = spec.plugin_alias
+        end
+      end
+      pickers[#pickers + 1] = { name = name, commit = info and info.commit }
     end
   end
   return pickers
