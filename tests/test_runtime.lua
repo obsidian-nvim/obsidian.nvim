@@ -11,7 +11,7 @@ T["finds plugin root without relying on the runtime path name"] = function()
 
   local ok, result = pcall(function()
     local copy = assert(loadfile(module_dir .. "/runtime.lua"))()
-    eq(root, copy.get_plugin_dir())
+    eq(vim.fs.normalize(root), vim.fs.normalize(copy.get_plugin_dir()))
   end)
   vim.fn.delete(vim.fn.fnamemodify(root, ":h"), "rf")
   assert(ok, result)
