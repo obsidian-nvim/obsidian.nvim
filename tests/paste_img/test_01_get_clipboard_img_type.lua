@@ -1,29 +1,29 @@
 local new_set, eq = MiniTest.new_set, MiniTest.expect.equality
 local h = dofile "tests/helpers.lua"
-local api = require "obsidian.api"
+local runtime = require "obsidian.runtime"
 
 local T, child = h.child_vault {
-  pre_case = [[api = require"obsidian.api"]],
+  pre_case = [[api = require"obsidian.runtime"]],
 }
 
 local test_cases = {
   {
     name = "Darwin with a png",
-    os_type = api.OSType.Darwin,
+    os_type = runtime.OSType.Darwin,
     expected_cmd = "pngpaste -b 2>&1",
     mock_output = "iVBORw0KG-fake-base64-data",
     expected_img_type = "png",
   },
   {
     name = "Windows with a png",
-    os_type = api.OSType.Windows,
+    os_type = runtime.OSType.Windows,
     expected_cmd = 'powershell.exe "Get-Clipboard -Format Image"',
     mock_output = "Some clipboard content\n",
     expected_img_type = "png",
   },
   {
     name = "Linux (Wayland) with a png",
-    os_type = api.OSType.Linux,
+    os_type = runtime.OSType.Linux,
     display_server = "wayland",
     expected_cmd = "wl-paste --list-types",
     mock_output = "image/png\ntext/plain",
@@ -31,7 +31,7 @@ local test_cases = {
   },
   {
     name = "Linux (X11) with a jpeg",
-    os_type = api.OSType.Linux,
+    os_type = runtime.OSType.Linux,
     display_server = "x11",
     expected_cmd = "xclip -selection clipboard -o -t TARGETS",
     mock_output = "image/jpeg\napplication/pdf",
@@ -39,7 +39,7 @@ local test_cases = {
   },
   {
     name = "WSL with a png",
-    os_type = api.OSType.Wsl,
+    os_type = runtime.OSType.Wsl,
     expected_cmd = 'powershell.exe "Get-Clipboard -Format Image"',
     mock_output = "Some clipboard content\n",
     expected_img_type = "png",

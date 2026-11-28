@@ -1,5 +1,6 @@
 local Path = require "obsidian.path"
 local log = require "obsidian.log"
+local runtime = require "obsidian.runtime"
 local api = require "obsidian.api"
 local util = require "obsidian.util"
 
@@ -20,20 +21,20 @@ local img_types = {
 
 -- Image pasting adapted from https://github.com/ekickx/clipboard-image.nvim
 
----@param this_os obsidian.api.OSType
+---@param this_os obsidian.runtime.OSType
 ---@return string|?
 local function get_clip_check_command(this_os)
   local check_cmd
-  if this_os == api.OSType.Linux or this_os == api.OSType.FreeBSD then
+  if this_os == runtime.OSType.Linux or this_os == runtime.OSType.FreeBSD then
     local display_server = os.getenv "XDG_SESSION_TYPE"
     if display_server == "x11" or display_server == "tty" then
       check_cmd = "xclip -selection clipboard -o -t TARGETS"
     elseif display_server == "wayland" then
       check_cmd = "wl-paste --list-types"
     end
-  elseif this_os == api.OSType.Darwin then
+  elseif this_os == runtime.OSType.Darwin then
     check_cmd = "pngpaste -b 2>&1"
-  elseif this_os == api.OSType.Windows or this_os == api.OSType.Wsl then
+  elseif this_os == runtime.OSType.Windows or this_os == runtime.OSType.Wsl then
     check_cmd = 'powershell.exe "Get-Clipboard -Format Image"'
   end
   return check_cmd
@@ -55,7 +56,7 @@ end
 ---@return obsidian.img_paste.ImageType?
 ---@return string? err set when the clipboard tool is not installed
 function M.get_clipboard_img_type()
-  local this_os = api.get_os()
+  local this_os = runtime.get_os()
   local check_cmd = get_clip_check_command(this_os)
   if not check_cmd then
     error("image saving not implemented for OS '" .. this_os .. "'")
@@ -68,7 +69,7 @@ function M.get_clipboard_img_type()
   local content = vim.split(result_string, "\n")
 
   -- See: [Data URI scheme](https://en.wikipedia.org/wiki/Data_URI_scheme)
-  if this_os == api.OSType.Linux or this_os == api.OSType.FreeBSD then
+  if this_os == runtime.OSType.Linux or this_os == runtime.OSType.FreeBSD then
     if vim.tbl_contains(content, "text/uri-list") then
       local success =
         os.execute "wl-paste --type text/uri-list | sed 's|file://||' | head -n1 | tr -d '[:space:]' | xargs -I{} sh -c 'wl-copy < \"$1\"' _ {}"
@@ -83,13 +84,13 @@ function M.get_clipboard_img_type()
     end
 
   -- Code for non-Linux Operating systems (only supports png)
-  elseif this_os == api.OSType.Darwin then
+  elseif this_os == runtime.OSType.Darwin then
     local first_line = content[1] or ""
     local is_img = string.sub(first_line, 1, 9) == "iVBORw0KG" -- Magic png number in base64
     if is_img then
       return "png"
     end
-  elseif this_os == api.OSType.Windows or this_os == api.OSType.Wsl then
+  elseif this_os == runtime.OSType.Windows or this_os == runtime.OSType.Wsl then
     local is_img = content ~= nil
     if is_img then
       return "png"
@@ -108,9 +109,9 @@ end
 ---
 ---@return boolean|? result
 local function save_clipboard_image(path, img_type)
-  local this_os = api.get_os()
+  local this_os = runtime.get_os()
 
-  if this_os == api.OSType.Linux or this_os == api.OSType.FreeBSD then
+  if this_os == runtime.OSType.Linux or this_os == runtime.OSType.FreeBSD then
     local mime_type = "image/" .. img_type
     local cmd
     local display_server = os.getenv "XDG_SESSION_TYPE"
@@ -121,13 +122,13 @@ local function save_clipboard_image(path, img_type)
       cmd = string.format("wl-paste --no-newline --type %s > %s", mime_type, vim.fn.shellescape(path))
       return vim.system({ "bash", "-c", cmd }):wait() ~= 0
     end
-  elseif this_os == api.OSType.Windows or this_os == api.OSType.Wsl then
+  elseif this_os == runtime.OSType.Windows or this_os == runtime.OSType.Wsl then
     local cmd = 'powershell.exe -c "'
       .. string.format("(get-clipboard -format image).save('%s', 'png')", string.gsub(path, "/", "\\"))
       .. '"'
     local ret = os.execute(cmd) -- TODO:
     return ret == true or ret == 0
-  elseif this_os == api.OSType.Darwin then
+  elseif this_os == runtime.OSType.Darwin then
     -- issue: https://github.com/jcsalterego/pngpaste/issues/16#issuecomment-2643724380
     if vim.fn.executable "convert" == 1 then
       local cmd = string.format("pngpaste - | convert - -set gamma 0.4545 - > %s", vim.fn.shellescape(path))

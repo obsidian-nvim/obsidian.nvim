@@ -81,22 +81,22 @@ end
 T["pickers"] = new_set()
 
 T["pickers"]["recognizes a picker on a renamed runtime path without loading it"] = function()
-  local runtime = vim.fn.tempname()
-  local module_path = runtime .. "/lua/snacks/picker"
+  local runtime_dir = vim.fn.tempname()
+  local module_path = runtime_dir .. "/lua/snacks/picker"
   vim.fn.mkdir(module_path, "p")
   vim.fn.writefile({ "error('health must not load this module')" }, module_path .. "/init.lua")
   local original_rtp = vim.o.runtimepath
-  vim.opt.rtp:prepend(runtime)
+  vim.opt.rtp:prepend(runtime_dir)
 
-  local api = require "obsidian.api"
-  local original_info = api.get_plugin_info
-  api.get_plugin_info = function()
+  local runtime = require "obsidian.runtime"
+  local original_info = runtime.get_plugin_info
+  runtime.get_plugin_info = function()
     return nil
   end
   local success, reports = pcall(section_reports, nil, "Pickers")
-  api.get_plugin_info = original_info
+  runtime.get_plugin_info = original_info
   vim.o.runtimepath = original_rtp
-  vim.fn.delete(runtime, "rf")
+  vim.fn.delete(runtime_dir, "rf")
   assert(success, reports)
 
   local snacks_found = false

@@ -111,10 +111,11 @@ local function neovim(minimum, recommended)
 end
 
 function M.check()
-  local os = api.get_os()
+  local runtime = require "obsidian.runtime"
+  local os = runtime.get_os()
   neovim("0.11", "0.12")
   start "Version"
-  local plugin_info = api.get_plugin_info "obsidian.nvim"
+  local plugin_info = runtime.get_plugin_info "obsidian.nvim"
   ok_f("obsidian.nvim v%s (%s)", VERSION, plugin_info and plugin_info.commit or "unknown commit")
 
   start "Environment"
@@ -167,7 +168,7 @@ function M.check()
   })
 
   start "Image paste"
-  if os == api.OSType.Linux or os == api.OSType.FreeBSD then
+  if os == runtime.OSType.Linux or os == runtime.OSType.FreeBSD then
     has_one_of_executable({
       "xclip",
       "wl-paste",
@@ -175,7 +176,7 @@ function M.check()
       feature = ":Obsidian paste_img",
       hint = "Use `xclip` on X11 or `wl-clipboard` (provides `wl-paste`) on Wayland.",
     })
-  elseif os == api.OSType.Darwin then
+  elseif os == runtime.OSType.Darwin then
     has_one_of_executable({ "pngpaste" }, {
       feature = ":Obsidian paste_img",
       hint = "Install `pngpaste` to paste clipboard images.",
@@ -184,13 +185,13 @@ function M.check()
       feature = ":Obsidian paste_img",
       hint = "Install ImageMagick to correct pasted image gamma.",
     })
-  elseif os == api.OSType.Windows or os == api.OSType.Wsl then
+  elseif os == runtime.OSType.Windows or os == runtime.OSType.Wsl then
     ok_f ":Obsidian paste_img uses PowerShell clipboard support"
   else
     warn_f(":Obsidian paste_img is not implemented for %s", os)
   end
 
-  if os == api.OSType.Wsl then
+  if os == runtime.OSType.Wsl then
     start "Open"
     has_one_of_executable({ "wsl-open" }, {
       feature = ":Obsidian open on WSL",

@@ -1,5 +1,6 @@
 local picker_util = require "obsidian.picker.util"
 local api = require "obsidian.api"
+local runtime = require "obsidian.runtime"
 local icons = require "obsidian.icons"
 local log = require "obsidian.log"
 local PickerName = require("obsidian.types").Picker
@@ -21,16 +22,16 @@ local state = {}
 M.state = state
 
 ---@class obsidian.picker.PluginSpec
----@field plugins string[]
----@field modules string[]
+---@field plugin string
+---@field module string
 
 ---@type table<string, obsidian.picker.PluginSpec>
 local picker_plugins = {
-  [string.lower(PickerName.telescope)] = { plugins = { "telescope.nvim" }, modules = { "telescope" } },
-  [string.lower(PickerName.fzf_lua)] = { plugins = { "fzf-lua" }, modules = { "fzf-lua" } },
-  [string.lower(PickerName.mini)] = { plugins = { "mini.nvim", "mini.pick" }, modules = { "mini.pick" } },
-  [string.lower(PickerName.snacks)] = { plugins = { "snacks.nvim" }, modules = { "snacks.picker" } },
-  ["snacks.pick"] = { plugins = { "snacks.nvim" }, modules = { "snacks.picker" } },
+  [string.lower(PickerName.telescope)] = { plugin = "telescope.nvim", module = "telescope" },
+  [string.lower(PickerName.fzf_lua)] = { plugin = "fzf-lua", module = "fzf-lua" },
+  [string.lower(PickerName.mini)] = { plugin = "mini.nvim", module = "mini.pick" },
+  [string.lower(PickerName.snacks)] = { plugin = "snacks.nvim", module = "snacks.picker" },
+  ["snacks.pick"] = { plugin = "snacks.nvim", module = "snacks.picker" },
 }
 
 local picker_order = { PickerName.telescope, PickerName.fzf_lua, PickerName.mini, PickerName.snacks }
@@ -45,29 +46,19 @@ end
 
 ---@param picker_name string
 ---@param load boolean
----@return string? name
----@return string? commit
-local function picker_info(picker_name, load)
+---@return obsidian.picker.PluginSpec?
+local function picker_spec(picker_name, load)
   local spec = picker_plugins[string.lower(picker_name)]
   if spec == nil then
     return
   end
 
-  for _, plugin in ipairs(spec.plugins) do
-    local info = api.get_plugin_info(plugin)
-    if info then
-      return plugin, info.commit
+  if load then
+    if pcall(require, spec.module) then
+      return spec
     end
-  end
-
-  for _, modname in ipairs(spec.modules) do
-    if load then
-      if pcall(require, modname) then
-        return spec.plugins[1]
-      end
-    elseif package.loaded[modname] or package.preload[modname] or module_on_runtimepath(modname) then
-      return spec.plugins[1]
-    end
+  elseif package.loaded[spec.module] or package.preload[spec.module] or module_on_runtimepath(spec.module) then
+    return spec
   end
 end
 
@@ -76,9 +67,10 @@ end
 function M._installed_pickers()
   local pickers = {}
   for _, picker_name in ipairs(picker_order) do
-    local name, commit = picker_info(picker_name, false)
-    if name then
-      pickers[#pickers + 1] = { name = name, commit = commit }
+    local spec = picker_spec(picker_name, false)
+    if spec then
+      local info = runtime.get_plugin_info(spec.plugin)
+      pickers[#pickers + 1] = { name = spec.plugin, commit = info and info.commit }
     end
   end
   return pickers
@@ -431,7 +423,7 @@ local function resolve_picker()
 
   local picker_name = state.picker_name
   if picker_name then
-    if not picker_info(picker_name, true) then
+    if not picker_spec(picker_name, true) then
       log.warn_once('Configured picker "%s" is not available; falling back to native picker', picker_name)
       patch "obsidian.picker.default"
       state.picker_resolved = true
@@ -439,7 +431,7 @@ local function resolve_picker()
     end
   else
     for _, name in ipairs(picker_order) do
-      if picker_info(name, true) then
+      if picker_spec(name, true) then
         picker_name = string.lower(name)
         break
       end

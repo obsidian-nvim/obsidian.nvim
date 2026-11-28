@@ -1,4 +1,5 @@
 local api = require "obsidian.api"
+local runtime = require "obsidian.runtime"
 local Path = require "obsidian.path"
 local search = require "obsidian.search"
 local refs = require "obsidian.parse.refs"
@@ -14,10 +15,10 @@ local function open_in_app(path, workspace_dir)
     return open_func("obsidian://open?vault=" .. vim.uri_encode(vault_name))
   end
   path = tostring(path)
-  local this_os = api.get_os()
+  local this_os = runtime.get_os()
 
   -- Normalize path for windows.
-  if this_os == api.OSType.Windows then
+  if this_os == runtime.OSType.Windows then
     path = string.gsub(path, "/", "\\")
   end
 

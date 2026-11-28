@@ -1,6 +1,6 @@
 local new_set, eq = MiniTest.new_set, MiniTest.expect.equality
 local h = dofile "tests/helpers.lua"
-local api = require "obsidian.api"
+local runtime = require "obsidian.runtime"
 
 local qeq = MiniTest.new_expectation(
   -- Expectation subject
@@ -31,6 +31,7 @@ local qeq = MiniTest.new_expectation(
 local T, child = h.child_vault {
   pre_case = [[
     api = require "obsidian.api"
+    runtime = require "obsidian.runtime"
     log = require "obsidian.log"
   ]],
 }
@@ -40,7 +41,7 @@ local test_cases = {
     img_type = "png",
     file_name = "meow.png",
     expected_msg = "Paste aborted",
-    os_type = api.OSType.Linux,
+    os_type = runtime.OSType.Linux,
     display_server = "wayland",
     expected_cmd = nil,
     api_confirm = nil,
@@ -50,7 +51,7 @@ local test_cases = {
     img_type = "png",
     file_name = "me^ow.png",
     expected_msg = "Links will not work with file names containing any of these characters in Obsidian: # ^ [ ] |",
-    os_type = api.OSType.Linux,
+    os_type = runtime.OSType.Linux,
     display_server = "wayland",
     expected_cmd = { "bash", "-c", [[wl-paste --no-newline --type image/png > "me^ow.png"]] },
     confirm_img_paste = false,
@@ -59,7 +60,7 @@ local test_cases = {
     img_type = "jpeg",
     file_name = "meow.jpeg",
     expected_msg = nil,
-    os_type = api.OSType.Linux,
+    os_type = runtime.OSType.Linux,
     display_server = "x11",
     expected_cmd = { "bash", "-c", [[xclip -selection clipboard -t image/jpeg -o > "meow.jpeg"]] },
     confirm_img_paste = false,
@@ -68,7 +69,7 @@ local test_cases = {
     img_type = "png",
     file_name = "meow.png",
     expected_msg = nil,
-    os_type = api.OSType.Darwin,
+    os_type = runtime.OSType.Darwin,
     display_server = nil,
     convert_available = true,
     expected_cmd = { "bash", "-c", [[pngpaste - | convert - -set gamma 0.4545 - > "meow.png"]] },
@@ -78,7 +79,7 @@ local test_cases = {
     img_type = "png",
     file_name = "meow.png",
     expected_msg = nil,
-    os_type = api.OSType.Darwin,
+    os_type = runtime.OSType.Darwin,
     display_server = nil,
     convert_available = false,
     expected_cmd = { "pngpaste", "meow.png" },
@@ -88,7 +89,7 @@ local test_cases = {
     img_type = "png",
     file_name = "meow.png",
     expected_msg = nil,
-    os_type = api.OSType.Windows,
+    os_type = runtime.OSType.Windows,
     display_server = nil,
     expected_cmd = "powershell.exe -c \"(get-clipboard -format image).save('meow.png', 'png')\"",
     confirm_img_paste = false,
@@ -97,7 +98,7 @@ local test_cases = {
     img_type = "png",
     file_name = "meow.jpeg",
     expected_msg = "invalid suffix for image name '%s', must be '%s'",
-    os_type = api.OSType.Darwin,
+    os_type = runtime.OSType.Darwin,
     display_server = nil,
     expected_cmd = nil,
     confirm_img_paste = false,
@@ -134,7 +135,7 @@ T["image saving"]["uses the platform clipboard command"] = function(case)
     api.confirm = function() return nil end
 
     -- Mock functions called by local function save_clipboard_image
-    api.get_os = function()
+    runtime.get_os = function()
       return case.os_type
     end
 
@@ -150,7 +151,7 @@ T["image saving"]["uses the platform clipboard command"] = function(case)
       if var == "XDG_SESSION_TYPE" then
         return case.display_server
       end
-      return api.get_os()
+      return runtime.get_os()
     end
 
     vim.fn.system = function(cmd)
