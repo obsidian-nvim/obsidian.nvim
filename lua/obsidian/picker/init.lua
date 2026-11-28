@@ -422,7 +422,7 @@ end
 
 --- Get the default Picker.
 ---
----@param picker_name obsidian.config.Picker|false|?
+---@param picker_name obsidian.config.Picker|"snacks.pick"|false|?
 M.get = function(picker_name)
   state.picker_resolved = false
   state.picker_name = nil
@@ -435,7 +435,8 @@ M.get = function(picker_name)
   end
 
   if picker_name then
-    state.picker_name = string.lower(picker_name)
+    local name = string.lower(picker_name)
+    state.picker_name = name == "snacks.pick" and PickerName.snacks or name
   end
 
   M.find_files = find_files

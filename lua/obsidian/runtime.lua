@@ -1,15 +1,17 @@
 local M = {}
 
+local source = debug.getinfo(1, "S").source
+local plugin_dir
+if source:sub(1, 1) == "@" then
+  local dir = vim.fs.dirname
+  local path = vim.fs.normalize(vim.fs.abspath(source:sub(2)), { expand_env = false })
+  plugin_dir = dir(dir(dir(path)))
+end
+
 --- Get the directory containing this plugin's Lua module.
 ---@return string?
 M.get_plugin_dir = function()
-  local info = debug.getinfo(1, "S")
-  local source = info and info.source
-  if not source or source:sub(1, 1) ~= "@" then
-    return
-  end
-  local dir = vim.fs.dirname
-  return dir(dir(dir(source:sub(2))))
+  return plugin_dir
 end
 
 ---@enum obsidian.runtime.OSType
