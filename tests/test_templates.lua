@@ -1,4 +1,5 @@
-local T = dofile("tests/helpers.lua").temp_vault
+local helpers = dofile "tests/helpers.lua"
+local T = helpers.temp_vault
 local new_set, eq = MiniTest.new_set, MiniTest.expect.equality
 local M = require "obsidian.templates"
 local moment = require "obsidian.lib.moment"
@@ -219,6 +220,57 @@ T["config.normalize()"]["vim.NIL should remove a default value"] = function()
 
   -- The field should be nil, not the default "current_dir".
   eq(nil, opts.new_notes_location)
+end
+
+local command_tests, child = helpers.child_vault {
+  pre_case = [[Obsidian.opts.note_id_func = function() return 'generated-id' end]],
+}
+T["new_from_template command"] = command_tests
+
+command_tests["preserves template placeholders on save and expands aliases and title in the new note"] = function()
+  local result = child.lua [[
+    local template = tostring(Obsidian.dir / "templates" / "aliases.md")
+    local source = {
+      "---",
+      "id: my_default_template",
+      "date: {{date}}",
+      "time: {{time}}",
+      "aliases:",
+      "  - Foo",
+      '  - "{{title}}"',
+      "tags: []",
+      "---",
+      "",
+      "# {{title}}",
+    }
+    vim.fn.writefile(source, template)
+    vim.cmd("filetype on")
+    vim.cmd.edit(vim.fn.fnameescape(template))
+    assert(vim.bo.filetype == "markdown")
+    assert(not require("obsidian.api").path_is_note(template))
+    vim.cmd.write()
+    local preserved = vim.deep_equal(source, vim.fn.readfile(template))
+
+    vim.cmd("Obsidian new_from_template Foo Bar Fizz Buzz aliases.md")
+    local note = assert(require("obsidian.api").current_note())
+    local body = note:body_lines()
+    return {
+      preserved = preserved,
+      id = note.id,
+      aliases = note.aliases,
+      date_expanded = type(note.metadata.date) == "string" and note.metadata.date:match("^%d%d%d%d%-%d%d%-%d%d$") ~= nil,
+      time_expanded = type(note.metadata.time) == "string" and note.metadata.time:match("^%d%d:%d%d$") ~= nil,
+      heading = body[#body],
+    }
+  ]]
+  eq({
+    preserved = true,
+    id = "generated-id",
+    aliases = { "Foo", "Foo Bar Fizz Buzz" },
+    date_expanded = true,
+    time_expanded = true,
+    heading = "# Foo Bar Fizz Buzz",
+  }, result)
 end
 
 return T
