@@ -58,7 +58,10 @@ M.get_os = function()
   if vim.fn.has "win32" == 1 then
     this_os = M.OSType.Windows
   else
-    local uname = assert(vim.uv.os_uname())
+    local uname = vim.uv.os_uname()
+    if not uname then
+      return M.OSType.Linux -- HACK:
+    end
     local sysname = uname.sysname
     local release = uname.release:lower()
     if sysname:lower() == "linux" and string.find(release, "microsoft") then
