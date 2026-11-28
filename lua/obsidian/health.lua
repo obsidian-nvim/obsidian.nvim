@@ -36,22 +36,6 @@ local function start(name)
   vim.health.start(string.format("[%s]", name))
 end
 
----@param plugin string
----@param optional boolean
----@return boolean
-local function has_plugin(plugin, optional)
-  local plugin_info = api.get_plugin_info(plugin)
-  if plugin_info then
-    ok_f("%s: %s", plugin, plugin_info.commit or "unknown")
-    return true
-  else
-    if not optional then
-      error(" " .. plugin .. " not installed")
-    end
-    return false
-  end
-end
-
 ---@alias obsidian.DependencyInfo obsidian.health.DependencyInfo
 ---@class obsidian.health.DependencyInfo
 ---@field path string
@@ -78,19 +62,6 @@ local function has_executable(name, optional)
       error(string.format("%s not found", name))
     end
     return false
-  end
-end
-
----@param plugins string[]
-local function has_one_of(plugins)
-  local found
-  for _, name in ipairs(plugins) do
-    if has_plugin(name, true) then
-      found = true
-    end
-  end
-  if not found then
-    warn("It is recommended to install at least one of " .. vim.inspect(plugins))
   end
 end
 
@@ -173,13 +144,14 @@ function M.check()
 
   start "Pickers"
 
-  has_one_of {
-    "telescope.nvim",
-    "fzf-lua",
-    "mini.nvim",
-    "mini.pick",
-    "snacks.nvim",
-  }
+  local pickers = require("obsidian.picker")._installed_pickers()
+  if #pickers == 0 then
+    warn "No external picker detected; the native picker is available."
+  else
+    for _, picker in ipairs(pickers) do
+      ok_f("%s: %s", picker.name, picker.commit or "unknown")
+    end
+  end
 
   start "Dependencies"
   has_executable("rg", false)

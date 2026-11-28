@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Escape the alias pipe (`[[Note\|alias]]`) when a link is inserted into a table row, so the link no longer splits the cell.
 - telescope.nvim file selection actions for Obsidian entries.
 - Resolve lazy-loaded and non-standard-path picker plugins by falling back to `require()` when the plugin directory is not yet on `runtimepath`.
+- Detect pickers installed under non-standard paths in `:checkhealth obsidian` without loading them.
 
 ### Changed
 

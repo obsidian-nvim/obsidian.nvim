@@ -33,27 +33,55 @@ local picker_plugins = {
   ["snacks.pick"] = { plugins = { "snacks.nvim" }, modules = { "snacks.picker" } },
 }
 
----@param picker_name string
+local picker_order = { PickerName.telescope, PickerName.fzf_lua, PickerName.mini, PickerName.snacks }
+
+---@param modname string
 ---@return boolean
-local function picker_available(picker_name)
+local function module_on_runtimepath(modname)
+  local path = "lua/" .. modname:gsub("%.", "/")
+  return #vim.api.nvim_get_runtime_file(path .. ".lua", false) > 0
+    or #vim.api.nvim_get_runtime_file(path .. "/init.lua", false) > 0
+end
+
+---@param picker_name string
+---@param load boolean
+---@return string? name
+---@return string? commit
+local function picker_info(picker_name, load)
   local spec = picker_plugins[string.lower(picker_name)]
   if spec == nil then
-    return false
+    return
   end
 
   for _, plugin in ipairs(spec.plugins) do
-    if api.get_plugin_info(plugin) ~= nil then
-      return true
+    local info = api.get_plugin_info(plugin)
+    if info then
+      return plugin, info.commit
     end
   end
 
   for _, modname in ipairs(spec.modules) do
-    if pcall(require, modname) then
-      return true
+    if load then
+      if pcall(require, modname) then
+        return spec.plugins[1]
+      end
+    elseif package.loaded[modname] or package.preload[modname] or module_on_runtimepath(modname) then
+      return spec.plugins[1]
     end
   end
+end
 
-  return false
+--- Discover pickers for checkhealth without triggering their loaders.
+---@return { name: string, commit: string? }[]
+function M._installed_pickers()
+  local pickers = {}
+  for _, picker_name in ipairs(picker_order) do
+    local name, commit = picker_info(picker_name, false)
+    if name then
+      pickers[#pickers + 1] = { name = name, commit = commit }
+    end
+  end
+  return pickers
 end
 
 -------------------------------------------------------------------
@@ -403,15 +431,15 @@ local function resolve_picker()
 
   local picker_name = state.picker_name
   if picker_name then
-    if not picker_available(picker_name) then
+    if not picker_info(picker_name, true) then
       log.warn_once('Configured picker "%s" is not available; falling back to native picker', picker_name)
       patch "obsidian.picker.default"
       state.picker_resolved = true
       return
     end
   else
-    for _, name in ipairs { PickerName.telescope, PickerName.fzf_lua, PickerName.mini, PickerName.snacks } do
-      if picker_available(name) then
+    for _, name in ipairs(picker_order) do
+      if picker_info(name, true) then
         picker_name = string.lower(name)
         break
       end
