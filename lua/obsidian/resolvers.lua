@@ -1,9 +1,7 @@
 local log = require "obsidian.log"
-local Path = require "obsidian.path"
 local picker = require "obsidian.picker"
 local date = require "obsidian.date"
 local uri = require "obsidian.uri"
-local api = require "obsidian.api"
 
 local M = {}
 
@@ -98,24 +96,6 @@ M.builtin.attachment = function(ctx, done)
   end)
 end
 
----@param datetime integer
----@return obsidian.Path
-local function daily_note_path(datetime)
-  local path = Path.new(api.resolve_workspace_dir())
-  local options = Obsidian.opts
-
-  if options.daily_notes.folder ~= nil then
-    path = path / options.daily_notes.folder
-  elseif options.notes_subdir ~= nil then
-    path = path / options.notes_subdir
-  end
-
-  local date_format = assert(options.daily_notes.date_format, "daily notes date_format is required")
-  local daily_path = path / (tostring(date.format(datetime, date_format, options.daily_notes.start_of_week)) .. ".md")
-  ---@cast daily_path obsidian.Path
-  return daily_path
-end
-
 ---@type obsidian.resolver.Resolver
 M.builtin.date = function(ctx, done)
   if ctx.offset_start == nil or ctx.offset_end == nil then
@@ -128,10 +108,11 @@ M.builtin.date = function(ctx, done)
 
   ---@type obsidian.picker.Entry[]
   local dailies = {}
+  local daily = require "obsidian.daily"
   local options = Obsidian.opts
   for offset = ctx.offset_end, ctx.offset_start, -1 do
     local datetime = os.time() + (offset * 3600 * 24)
-    local daily_path = daily_note_path(datetime)
+    local daily_path = daily.daily_note_path(datetime)
     local label = tostring(
       date.format(datetime, options.daily_notes.alias_format or "%A %B %-d, %Y", options.daily_notes.start_of_week)
     )

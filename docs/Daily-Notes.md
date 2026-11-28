@@ -11,7 +11,7 @@ tags:
 - [Options](#options)
 - [See also](#see-also)
 
-The Daily Notes feature allows you to quickly create and navigate to date-based notes in your vault. This is useful for journaling, tracking daily tasks, or maintaining a chronological record of your work.
+Daily note commands and the daily-note picker use the active workspace's root and settings. After `:Obsidian workspace NAME`, they use that workspace even if the current buffer is still in a different vault.
 
 ## Commands
 

@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Use the active workspace for both daily note paths and settings after `:Obsidian workspace`.
 - Avoid argument-limit and stack-overflow failures when searching properties across large vaults with caching disabled.
 
 - Preserve the first line and full line length in linewise visual mode (`V`) selections such as `extract_note` and handle empty lines safely.
