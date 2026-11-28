@@ -130,17 +130,12 @@ When creating notes in a directory where the slug already exists, this preset ap
 ---@field template string|?
 note = {
   template = (function()
-    local root
-    for _, path in ipairs(vim.api.nvim_list_runtime_paths()) do
-      if vim.endswith(path, "obsidian.nvim") then
-        root = path
-        break
-      end
-    end
+    local root = require("obsidian.runtime").get_plugin_dir()
     if not root then
       return nil
     end
-    return vim.fs.joinpath(root, "data/default_template.md")
+    local template = vim.fs.joinpath(root, "data/default_template.md")
+    return vim.uv.fs_stat(template) and template or nil
   end)(),
 }
 ```
